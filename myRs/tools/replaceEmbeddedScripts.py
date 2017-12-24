@@ -21,21 +21,24 @@ def main():
 	desktop = ctx.getByName('/singletons/com.sun.star.frame.theDesktop')  # デスクトップの取得。
 	flg = isComponentLoaded(desktop, doc_fileurl)  # ドキュメントが開いていたら保存して閉じる。
 	python_pkgurl = getVndSunStarPkgUrl(ctx, smgr, doc_fileurl)  # pkgurlの取得。
-	if simplefileaccess.exists(python_pkgurl):  # 埋め込みマクロフォルダがすでに存在する時。simplefileaccess.kill(pkgurl)では削除できない。
-		package = smgr.createInstanceWithArgumentsAndContext("com.sun.star.packages.Package", (doc_fileurl,), ctx)  # Package。第2引数はinitialize()メソッドで後でも渡せる。
-		docroot = package.getByHierarchicalName("/")  # /Scripts/pythonは不可。
-		for name in docroot["Scripts"]["python"].getElementNames(): # すでに存在する埋め込みマクロフォルダの各要素を削除。
-			del docroot["Scripts"]["python"][name]
-		package.commitChanges()  # ファイルにパッケージの変更を書き込む。manifest.xmlも編集される。	
-	else:  # 埋め込みマクロフォルダが存在しない時。
-		propertyvalues = PropertyValue(Name="Hidden",Value=True),
-		doc = desktop.loadComponentFromURL(doc_fileurl, "_blank", 0, propertyvalues)  # ドキュメントをバックグラウンドで開く。
-		if doc is None:  # ドキュメントが壊れているときなどはNoneになる。
-			print("{} may be corrupted.".format(ods), file=sys.stderr)
-			sys.exit()
-		createEmbeddedMacroFolder(ctx, smgr, simplefileaccess, doc)  # 埋め込みマクロフォルダを新規作成。開いているドキュメントにしか作成できない。
-		doc.store()  # ドキュメントを保存する。
-		doc.close(True)  # ドキュメントを閉じる。
+# 	if simplefileaccess.exists(python_pkgurl):  # 埋め込みマクロフォルダがすでに存在する時。simplefileaccess.kill(pkgurl)では削除できない。
+# 		package = smgr.createInstanceWithArgumentsAndContext("com.sun.star.packages.Package", (doc_fileurl,), ctx)  # Package。第2引数はinitialize()メソッドで後でも渡せる。
+# 		docroot = package.getByHierarchicalName("/")  # /Scripts/pythonは不可。
+# 		for name in docroot["Scripts"]["python"].getElementNames(): # すでに存在する埋め込みマクロフォルダの各要素を削除。
+# 			del docroot["Scripts"]["python"][name]
+# # 		package.commitChanges()  # ファイルにパッケージの変更を書き込む。manifest.xmlも編集される。	
+# 	else:  # 埋め込みマクロフォルダが存在しない時。
+	propertyvalues = PropertyValue(Name="Hidden",Value=True),
+	doc = desktop.loadComponentFromURL(doc_fileurl, "_blank", 0, propertyvalues)  # ドキュメントをバックグラウンドで開く。
+	if doc is None:  # ドキュメントが壊れているときなどはNoneになる。
+		print("{} may be corrupted.".format(ods), file=sys.stderr)
+		sys.exit()
+	createEmbeddedMacroFolder(ctx, smgr, simplefileaccess, doc)  # 埋め込みマクロフォルダを新規作成。開いているドキュメントにしか作成できない。
+	doc.store()  # ドキュメントを保存する。
+	doc.close(True)  # ドキュメントを閉じる。
+		
+
+		
 	simplefileaccess.copy(source_fileurl, python_pkgurl)  # 埋め込みマクロフォルダにコピーする。開いているドキュメントでは書き込みが反映されない時があるので閉じたドキュメントにする。
 	if flg:  # ドキュメントが開いていた時はマクロを有効にして開き直す。
 		propertyvalues = PropertyValue(Name = "MacroExecutionMode", Value=MacroExecMode.ALWAYS_EXECUTE_NO_WARN),  # マクロを実行可能にする。
@@ -62,7 +65,10 @@ def createEmbeddedMacroFolder(ctx, smgr, simplefileaccess, component):  # 埋め
 	transientdocumentsdocumentcontentfactory = smgr.createInstanceWithContext("com.sun.star.frame.TransientDocumentsDocumentContentFactory", ctx)
 	transientdocumentsdocumentcontent = transientdocumentsdocumentcontentfactory.createDocumentContent(component)
 	tdocurl = transientdocumentsdocumentcontent.getIdentifier().getContentIdentifier()  # ex. vnd.sun.star.tdoc:/1
-	python_tdocurl = "/".join((tdocurl, "Scripts/python"))  # 開いているドキュメントの埋め込みマクロフォルダへのフルパスを取得。	
+# 	python_tdocurl = "/".join((tdocurl, "Scripts/python"))  # 開いているドキュメントの埋め込みマクロフォルダへのフルパスを取得。	
+	
+	python_tdocurl = "/".join((tdocurl, "Scripts/python/pythonpath"))  # 開いているドキュメントの埋め込みマクロフォルダへのフルパスを取得。	
+	
 	simplefileaccess.createFolder(python_tdocurl)  # 埋め込みマクロフォルダを作成。
 if __name__ == "__main__":  # オートメーションで実行するとき
 	def automation():  # オートメーションのためにglobalに出すのはこの関数のみにする。

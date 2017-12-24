@@ -5,8 +5,29 @@ import os
 from com.sun.star.awt import XEnhancedMouseClickHandler
 from com.sun.star.awt import MouseButton  # 定数
 from com.sun.star.ui import XContextMenuInterceptor
+from com.sun.star.sheet import XActivationEventListener
 from com.sun.star.ui.ContextMenuInterceptorAction import EXECUTE_MODIFIED  # enum
 from com.sun.star.ui import ActionTriggerSeparatorType  # 定数
+
+# from fordebugging import enableRemoteDebugging
+# vnd.sun.star.tdoc:/10/Scripts/python/embeddedmacro.py
+
+# tdoc = __file__.repalce("/embeddedmacro.py", "")
+
+# from constants import LISTSHEET  # 辞書
+import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)  # デバッグサーバーを起動していた場合はここでブレークされる。import pydevdは時間がかかる。
+
+import constatns
+
+# from .submodules.constants import LISTSHEET  # 辞書
+
+# import sys
+# p = __file__.replace("/Scripts/python/embeddedmacro.py", "")
+# sys.path.append("/".join(tdoc, "submodules"))
+# from constants import LISTSHEET  # 辞書
+# print(__file__)
+
+# from pythonpath.constants import LISTSHEET  # 辞書
 try:
 	from fordebugging import enableRemoteDebugging  # デバッグ用。マクロで実行した時。
 except:
@@ -15,9 +36,60 @@ def macro(documentevent=None):  # 引数は文書のイベント駆動用。
 	doc = XSCRIPTCONTEXT.getDocument() if documentevent is None else documentevent.Source  # ドキュメントのモデルを取得。 
 	ctx = XSCRIPTCONTEXT.getComponentContext()  # コンポーネントコンテクストの取得。
 # 	smgr = ctx.getServiceManager()  # サービスマネージャーの取得。
+# 	from constants import LISTSHEET  # 辞書
+
+
+# 	p = unohelper.fileUrlToSystemPath(doc.getURL())
+	
+	
+	
+
+# 	p = os.path.join(p, "Scripts", "python", "")
+
+# 	print(__file__)
+
+# 	tdoc = __file__.replace("/embeddedmacro.py", "")
+# 	
+# 	p = unohelper.fileUrlToSystemPath("/".join((tdoc, "pythonpath2")))
+# 	
+# 	import sys
+# 
+# 	sys.path.insert(0, 'example.zip')
+# 	from constants import LISTSHEET  # 辞書
+
+	
+
+
 	controller = doc.getCurrentController()  # コントローラの取得。
-	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler())  # マウスハンドラをコントローラに設定。
-	controller.registerContextMenuInterceptor(ContextMenuInterceptor(ctx, doc))  # コントローラにContextMenuInterceptorを登録する。
+	
+	sheet = controller.getActiveSheet()
+# 	import sys
+# 	import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)  # デバッグサーバーを起動していた場合はここでブレークされる。import pydevdは時間がかかる。
+
+	
+# 	sheet["A1"].setString(str(sys.path))
+	
+	
+# 	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler())  # マウスハンドラをコントローラに設定。
+# 	controller.registerContextMenuInterceptor(ContextMenuInterceptor(ctx, doc))  # コントローラにContextMenuInterceptorを登録する。
+	controller.addActivationEventListener(ActivationEventListener())  # シートをアクティベートした時。
+class ActivationEventListener(unohelper.Base, XActivationEventListener):
+	def activeSpreadsheetChanged(self, activationevent):  # シートをアクティベートした時。
+
+# 		import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)  # デバッグサーバーを起動していた場合はここでブレークされる。import pydevdは時間がかかる。
+		
+		
+		sheet = activationevent.ActiveSheet
+		sheetname = sheet.getName()
+		if sheetname==LISTSHEET["name"]:
+			row = "", "", "済をﾘｾｯﾄ", "", "血画を反映", "", ""
+			sheet[0, len(row)].setDataArray(row)
+
+			
+		
+		
+	def disposing(self, eventobject):
+		pass
 class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler): # マウスハンドラ
 	def mousePressed(self, enhancedmouseevent):  # マウスボタンをクリックした時。ブーリアンを返さないといけない。
 		target = enhancedmouseevent.Target  # ターゲットを取得。
