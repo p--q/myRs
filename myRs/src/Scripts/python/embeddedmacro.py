@@ -1,107 +1,96 @@
 #!/opt/libreoffice5.4/program/python
 # -*- coding: utf-8 -*-
 import unohelper  # オートメーションには必須(必須なのはuno)。
-import os
+import os, sys
+from types import ModuleType
 from com.sun.star.awt import XEnhancedMouseClickHandler
 from com.sun.star.awt import MouseButton  # 定数
 from com.sun.star.ui import XContextMenuInterceptor
-from com.sun.star.sheet import XActivationEventListener
 from com.sun.star.ui.ContextMenuInterceptorAction import EXECUTE_MODIFIED  # enum
 from com.sun.star.ui import ActionTriggerSeparatorType  # 定数
+from com.sun.star.sheet import XActivationEventListener
 
-# from fordebugging import enableRemoteDebugging
-# vnd.sun.star.tdoc:/10/Scripts/python/embeddedmacro.py
 
-# tdoc = __file__.repalce("/embeddedmacro.py", "")
-
-# from constants import LISTSHEET  # 辞書
-import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)  # デバッグサーバーを起動していた場合はここでブレークされる。import pydevdは時間がかかる。
-
-import constatns
-
-# from .submodules.constants import LISTSHEET  # 辞書
-
-# import sys
-# p = __file__.replace("/Scripts/python/embeddedmacro.py", "")
-# sys.path.append("/".join(tdoc, "submodules"))
-# from constants import LISTSHEET  # 辞書
-# print(__file__)
-
-# from pythonpath.constants import LISTSHEET  # 辞書
-try:
-	from fordebugging import enableRemoteDebugging  # デバッグ用。マクロで実行した時。
-except:
-	pass
+global XSCRIPTCONTEXT  # PyDevのエラー抑制用。
 def macro(documentevent=None):  # 引数は文書のイベント駆動用。  
 	doc = XSCRIPTCONTEXT.getDocument() if documentevent is None else documentevent.Source  # ドキュメントのモデルを取得。 
-	ctx = XSCRIPTCONTEXT.getComponentContext()  # コンポーネントコンテクストの取得。
-# 	smgr = ctx.getServiceManager()  # サービスマネージャーの取得。
-# 	from constants import LISTSHEET  # 辞書
-
-
-# 	p = unohelper.fileUrlToSystemPath(doc.getURL())
-	
-	
-	
-
-# 	p = os.path.join(p, "Scripts", "python", "")
-
-# 	print(__file__)
-
-# 	tdoc = __file__.replace("/embeddedmacro.py", "")
-# 	
-# 	p = unohelper.fileUrlToSystemPath("/".join((tdoc, "pythonpath2")))
-# 	
-# 	import sys
-# 
-# 	sys.path.insert(0, 'example.zip')
-# 	from constants import LISTSHEET  # 辞書
-
-	
-
-
 	controller = doc.getCurrentController()  # コントローラの取得。
-	
-	sheet = controller.getActiveSheet()
-# 	import sys
-# 	import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)  # デバッグサーバーを起動していた場合はここでブレークされる。import pydevdは時間がかかる。
+	ctx = XSCRIPTCONTEXT.getComponentContext()  # コンポーネントコンテクストの取得。
+	smgr = ctx.getServiceManager()  # サービスマネージャーの取得。
+	simplefileaccess = smgr.createInstanceWithContext("com.sun.star.ucb.SimpleFileAccess", ctx)  # SimpleFileAccess
+	modulefolderpath = getModuleFolderPath(ctx, smgr, doc)  # 埋め込みモジュールフォルダへのURLを取得。
+	consts = load_module(simplefileaccess, "/".join((modulefolderpath, "consts.py")))  # consts.pyをモジュールとして読み込む。
+	controller.addActivationEventListener(ActivationEventListener(controller))  # ActivationEventListener
+	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler(controller))  # EnhancedMouseClickHandler
 
 	
-# 	sheet["A1"].setString(str(sys.path))
-	
-	
-# 	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler())  # マウスハンドラをコントローラに設定。
-# 	controller.registerContextMenuInterceptor(ContextMenuInterceptor(ctx, doc))  # コントローラにContextMenuInterceptorを登録する。
-	controller.addActivationEventListener(ActivationEventListener())  # シートをアクティベートした時。
+# 	セルを選択した時　罫線を引く
+
+
+
+
+	controller.registerContextMenuInterceptor(ContextMenuInterceptor(ctx, smgr, doc, consts))  # コントローラにContextMenuInterceptorを登録する。右クリックの時の対応。
 class ActivationEventListener(unohelper.Base, XActivationEventListener):
-	def activeSpreadsheetChanged(self, activationevent):  # シートをアクティベートした時。
-
-# 		import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)  # デバッグサーバーを起動していた場合はここでブレークされる。import pydevdは時間がかかる。
-		
-		
-		sheet = activationevent.ActiveSheet
-		sheetname = sheet.getName()
-		if sheetname==LISTSHEET["name"]:
-			row = "", "", "済をﾘｾｯﾄ", "", "血画を反映", "", ""
-			sheet[0, len(row)].setDataArray(row)
-
-			
-		
-		
+	def __init__(self, controller):  # subjはコントローラー。
+		self.controller = controller
+	def activeSpreadsheetChanged(self, activationevent):  # アクティブシートが変化した時に発火。
+		sheet = activationevent.ActiveSheet  # アクティブになったシートを取得。
+		sheetname = sheet.getName()  # アクティブシート名を取得。
+		sheet["A1"].setString("ActiveSheetName: {}".format(sheetname))
 	def disposing(self, eventobject):
-		pass
+		self.controller.removeActivationEventListener(self)	
+class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
+	def __init__(self, controller):  # subjはコントローラー。
+		self.controller = controller
+	def mousePressed(self, enhancedmouseevent):  # セルをクリックした時に発火する。
+		target = enhancedmouseevent.Target  # ターゲットのセルを取得。
+		if enhancedmouseevent.Buttons==MouseButton.LEFT:  # 左ボタンのとき
+			controller = self.controller
+			if enhancedmouseevent.ClickCount==2:  # ダブルクリックの時
+				celladdress = target.getCellAddress()  # ターゲットのセルアドレスを取得。
+				if controller.hasFrozenPanes():  # 表示→セルの固定、がされている時。
+					if 
+					
+					
+					splitrow = controller.getSplitRow()
+					splitcolumn = controller.getSplitColumn()
+		
+				
+				if target.supportsService("com.sun.star.sheet.SheetCell"):  # ターゲットがセルの時。
+					
+					target.setString("R{}C{}".format(celladdress.Row, celladdress.Column))
+					return False  # セル編集モードにしない。
+		return True  # Falseを返すと右クリックメニューがでてこなくなる。		
+		
+		
+		
+		self._createLog(enhancedmouseevent, inspect.currentframe().f_code.co_name)
+		return True
+	def mouseReleased(self, enhancedmouseevent):
+		self._createLog(enhancedmouseevent, inspect.currentframe().f_code.co_name)
+		return True
+	def disposing(self, eventobject):
+		self.controller.removeEnhancedMouseClickHandler(self)
+	def _createLog(self, enhancedmouseevent, methodname):
+		dirpath, name = self.args
+		target = enhancedmouseevent.Target
+		target = getStringAddressFromCellRange(target) or target  # sourceがセル範囲の時は選択範囲の文字列アドレスを返す。
+		clickcount = enhancedmouseevent.ClickCount
+		filename = "_".join((name, methodname, "ClickCount", str(clickcount)))
+		createLog(dirpath, filename, "Buttons: {}, ClickCount: {}, PopupTrigger {}, Modifiers: {}, Target: {}".format(enhancedmouseevent.Buttons, clickcount, enhancedmouseevent.PopupTrigger, enhancedmouseevent.Modifiers, target))	
+		
+		
+		
+		
+		
 class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler): # マウスハンドラ
 	def mousePressed(self, enhancedmouseevent):  # マウスボタンをクリックした時。ブーリアンを返さないといけない。
 		target = enhancedmouseevent.Target  # ターゲットを取得。
 		if enhancedmouseevent.Buttons==MouseButton.LEFT:  # 左ボタンのとき
 			if enhancedmouseevent.ClickCount==2:  # ダブルクリックの時
-# 				import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)  
 				if target.supportsService("com.sun.star.sheet.SheetCell"):  # ターゲットがセルの時。
-					sheet = target.getSpreadsheet()  # ターゲットがあるシートを取得。
 					celladdress = target.getCellAddress()  # ターゲットのセルアドレスを取得。
-					
-					
-					
+					target.setString("R{}C{}".format(celladdress.Row, celladdress.Column))
 					return False  # セル編集モードにしない。
 		return True  # Falseを返すと右クリックメニューがでてこなくなる。
 	def mouseReleased(self, enhancedmouseevent):  # ブーリアンを返さないといけない。
@@ -109,15 +98,24 @@ class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler): # �
 	def disposing(self, eventobject):
 		pass	
 class ContextMenuInterceptor(unohelper.Base, XContextMenuInterceptor):  # コンテクストメニューのカスタマイズ。
-	def __init__(self, ctx, doc):
-		self.baseurl = getBaseURL(ctx, doc)  # ScriptingURLのbaseurlを取得。
+	def __init__(self, ctx, smgr, doc, consts):
+		self.args = consts, getBaseURL(ctx, smgr, doc)  # ScriptingURLのbaseurlを取得。
 	def notifyContextMenuExecute(self, contextmenuexecuteevent):  # 右クリックで呼ばれる関数。contextmenuexecuteevent.ActionTriggerContainerを操作しないとコンテクストメニューが表示されない。
-		baseurl = self.baseurl  # ScriptingURLのbaseurlを取得。
+		consts, baseurl = self.args 
+		controller = contextmenuexecuteevent.Selection  # コントローラーは逐一取得しないとgetSelection()が反映されない。
+		global toBlue, toRed  # コンテクストメニューに割り当てる関数。
+		toBlue, toRed = globalFunctionCreator(controller, consts)  # クロージャーでScriptingURLで呼び出す関数に変数を渡す。
+		target = controller.getSelection()  # 選択しているオブジェクトを取得。
 		contextmenu = contextmenuexecuteevent.ActionTriggerContainer  # コンテクストメニューコンテナの取得。
 		name = contextmenu.getName().rsplit("/")[-1]  # コンテクストメニューの名前を取得。
 		addMenuentry = menuentryCreator(contextmenu)  # 引数のActionTriggerContainerにインデックス0から項目を挿入する関数を取得。
 		if name=="cell":  # セルのとき
 			del contextmenu[:]  # contextmenu.clear()は不可。
+			if target.supportsService("com.sun.star.sheet.SheetCell"):  # ターゲットがセルの時。
+				addMenuentry("ActionTrigger", {"Text": "To blue", "CommandURL": baseurl.format(toBlue.__name__)})  # 引数のない関数名を渡す。
+			elif target.supportsService("com.sun.star.sheet.SheetCellRange"):  # ターゲットがセル範囲の時。
+				addMenuentry("ActionTrigger", {"Text": "To red", "CommandURL": baseurl.format(toRed.__name__)})  # 引数のない関数名を渡す。
+			addMenuentry("ActionTriggerSeparator", {"SeparatorType": ActionTriggerSeparatorType.LINE})  # セパレーターを挿入。
 			addMenuentry("ActionTrigger", {"CommandURL": ".uno:Cut"})
 			addMenuentry("ActionTrigger", {"CommandURL": ".uno:Copy"})
 			addMenuentry("ActionTrigger", {"CommandURL": ".uno:Paste"})
@@ -134,27 +132,15 @@ class ContextMenuInterceptor(unohelper.Base, XContextMenuInterceptor):  # コン
 		elif name=="sheettab":  # シートタブの時。
 			del contextmenu[:]  # contextmenu.clear()は不可。
 			addMenuentry("ActionTrigger", {"CommandURL": ".uno:Move"})
-		return EXECUTE_MODIFIED	
-
-# class ContextMenuInterceptor(unohelper.Base, XContextMenuInterceptor):  # コンテクストメニューのカスタマイズ。
-# 	def __init__(self, ctx, doc):
-# 		self.baseurl = getBaseURL(ctx, doc)  # ScriptingURLのbaseurlを取得。
-# 		global exportAsCSV, exportAsPDF, exportAsODS, SelectionToNewSheet   # ScriptingURLで呼び出す関数。オートメーションやAPSOでは不可。
-# 		exportAsCSV, exportAsPDF, exportAsODS, SelectionToNewSheet = globalFunctionCreator(ctx, doc, sheet)  # クロージャーでScriptingURLで呼び出す関数に変数を渡す。
-# 	def notifyContextMenuExecute(self, contextmenuexecuteevent):  # 引数はContextMenuExecuteEvent Struct。
-# 		baseurl = self.baseurl  # ScriptingURLのbaseurlを取得。
-# 		contextmenu = contextmenuexecuteevent.ActionTriggerContainer  # すでにあるコンテクストメニュー(アクショントリガーコンテナ)を取得。
-# 		submenucontainer = contextmenu.createInstance("com.sun.star.ui.ActionTriggerContainer")  # サブメニューにするアクショントリガーコンテナをインスタンス化。
-# 		addMenuentry(submenucontainer, "ActionTrigger", 0, {"Text": "Export as CSV...", "CommandURL": baseurl.format(exportAsCSV.__name__)})  # サブメニューを挿入。引数のない関数名を渡す。
-# 		addMenuentry(submenucontainer, "ActionTrigger", 1, {"Text": "Export as PDF...", "CommandURL": baseurl.format(exportAsPDF.__name__)})  # サブメニューを挿入。引数のない関数名を渡す。
-# 		addMenuentry(submenucontainer, "ActionTrigger", 2, {"Text": "Export as ODS...", "CommandURL": baseurl.format(exportAsODS.__name__)})  # サブメニューを挿入。引数のない関数名を渡す。
-# 		addMenuentry(submenucontainer, "ActionTrigger", 3, {"Text": "Selection to New Sheet", "CommandURL": baseurl.format(SelectionToNewSheet.__name__)})
-# 		addMenuentry(contextmenu, "ActionTrigger", 0, {"Text": "ExportAs", "SubContainer": submenucontainer})  # サブメニューを一番上に挿入。
-# 		addMenuentry(contextmenu, "ActionTriggerSeparator", 1, {"SeparatorType": ActionTriggerSeparatorType.LINE})  # アクショントリガーコンテナのインデックス1にセパレーターを挿入。
-		
-		
-		
-# 		return EXECUTE_MODIFIED  # このContextMenuInterceptorでコンテクストメニューのカスタマイズを終わらす。
+		return EXECUTE_MODIFIED	  # このContextMenuInterceptorでコンテクストメニューのカスタマイズを終わらす。
+def globalFunctionCreator(controller, consts):
+	colors = consts.COLORS
+	target = controller.getSelection()  # 選択しているオブジェクトを取得。
+	def toBlue():
+		target.setPropertyValue("CellBackColor", colors["CellBackgroundColor"])  # 背景を青色にする。
+	def toRed():
+		target.setPropertyValue("CellBackColor", colors["CellRangeBackgroundColor"])  # 背景を赤色にする。
+	return toBlue, toRed
 def menuentryCreator(menucontainer):  # 引数のActionTriggerContainerにインデックス0から項目を挿入する関数を取得。
 	i = 0  # インデックスを初期化する。
 	def addMenuentry(menutype, props):  # i: index, propsは辞書。menutypeはActionTriggerかActionTriggerSeparator。
@@ -164,35 +150,30 @@ def menuentryCreator(menucontainer):  # 引数のActionTriggerContainerにイン
 		menucontainer.insertByIndex(i, menuentry)  # submenucontainer[i]やsubmenucontainer[i:i]は不可。挿入以降のメニューコンテナの項目のインデックスは1増える。
 		i += 1  # インデックスを増やす。
 	return addMenuentry
-def addMenuentry(menucontainer, menutype, i, props):  # i: index, propsは辞書。menutypeはActionTriggerかActionTriggerSeparator。
-	menuentry = menucontainer.createInstance("com.sun.star.ui.{}".format(menutype))  # ActionTriggerContainerからインスタンス化する。
-	[menuentry.setPropertyValue(key, val) for key, val in props.items()]  #setPropertyValuesでは設定できない。エラーも出ない。
-	menucontainer.insertByIndex(i, menuentry)  # submenucontainer[i]やsubmenucontainer[i:i]は不可。挿入以降のメニューコンテナの項目のインデックスは1増える。
-def getBaseURL(ctx, doc):	 # 埋め込みマクロ、オートメーション、マクロセレクターに対応してScriptingURLのbaseurlを返す。
-	smgr = ctx.getServiceManager()  # サービスマネージャーの取得。
+def getBaseURL(ctx, smgr, doc):	 # 埋め込みマクロのScriptingURLのbaseurlを返す。__file__はvnd.sun.star.tdoc:/4/Scripts/python/filename.pyというように返ってくる。
 	modulepath = __file__  # ScriptingURLにするマクロがあるモジュールのパスを取得。ファイルのパスで場合分け。sys.path[0]は__main__の位置が返るので不可。
 	ucp = "vnd.sun.star.tdoc:"  # 埋め込みマクロのucp。
-	if modulepath.startswith(ucp):  # 埋め込みマクロの時。__file__はvnd.sun.star.tdoc:/4/Scripts/python/filename.pyというように返ってくる。
-		filepath = modulepath.replace(ucp, "")  #  ucpを除去。
-		transientdocumentsdocumentcontentfactory = smgr.createInstanceWithContext("com.sun.star.frame.TransientDocumentsDocumentContentFactory", ctx)
-		transientdocumentsdocumentcontent = transientdocumentsdocumentcontentfactory.createDocumentContent(doc)
-		contentidentifierstring = transientdocumentsdocumentcontent.getIdentifier().getContentIdentifier()  # __file__の数値部分に該当。
-		macrofolder = "{}/Scripts/python".format(contentidentifierstring.replace(ucp, ""))  #埋め込みマクロフォルダへのパス。	
-		location = "document"  # マクロの場所。	
-	else:
-		filepath = unohelper.fileUrlToSystemPath(modulepath) if modulepath.startswith("file://") else modulepath # オートメーションの時__file__はシステムパスだが、マクロセレクターから実行するとfileurlが返ってくる。
-		pathsubstservice = smgr.createInstanceWithContext("com.sun.star.comp.framework.PathSubstitution", ctx)
-		fileurl = pathsubstservice.substituteVariables("$(user)/Scripts/python", True)  # $(user)を変換する。fileurlが返ってくる。
-		macrofolder =  unohelper.fileUrlToSystemPath(fileurl)  # fileurlをシステムパスに変換する。マイマクロフォルダへのパス。	
-		location = "user"  # マクロの場所。
+	filepath = modulepath.replace(ucp, "")  #  ucpを除去。
+	transientdocumentsdocumentcontentfactory = smgr.createInstanceWithContext("com.sun.star.frame.TransientDocumentsDocumentContentFactory", ctx)
+	transientdocumentsdocumentcontent = transientdocumentsdocumentcontentfactory.createDocumentContent(doc)
+	contentidentifierstring = transientdocumentsdocumentcontent.getIdentifier().getContentIdentifier()  # __file__の数値部分に該当。
+	macrofolder = "{}/Scripts/python".format(contentidentifierstring.replace(ucp, ""))  #埋め込みマクロフォルダへのパス。	
+	location = "document"  # マクロの場所。	
 	relpath = os.path.relpath(filepath, start=macrofolder)  # マクロフォルダからの相対パスを取得。パス区切りがOS依存で返ってくる。
 	return "vnd.sun.star.script:{}${}?language=Python&location={}".format(relpath.replace(os.sep, "|"), "{}", location)  # ScriptingURLのbaseurlを取得。Windowsのためにos.sepでパス区切りを置換。	
-g_exportedScripts = macro, #マクロセレクターに限定表示させる関数をタプルで指定。		
-if __name__ == "__main__":  # オートメーションで実行するとき
-	from pythonpath.forautomation import automation
-	try:
-		from pythonpath.fordebugging import enableRemoteDebugging  # デバッグ用。
-	except:
-		pass
-	XSCRIPTCONTEXT = automation()  # XSCRIPTCONTEXTを取得。	
-	macro()  # マクロの実行。
+def load_module(simplefileaccess, modulepath):  # modulepathのモジュールを取得。
+	inputstream = simplefileaccess.openFileRead(modulepath)  # モジュールファイルからインプットストリームを取得。
+	dummy, b = inputstream.readBytes([], inputstream.available())  # simplefileaccess.getSize(module_tdocurl)は0が返る。
+	source = bytes(b).decode("utf-8")  # モジュールのソースをテキストで取得。
+	mod = sys.modules.setdefault(modulepath, ModuleType(modulepath))  # 新規モジュールをsys.modulesに挿入。
+	code = compile(source, modulepath, 'exec')  # urlを呼び出し元としてソースコードをコンパイルする。
+	mod.__file__ = modulepath  # モジュールの__file__を設定。
+	mod.__package__ = ''  # モジュールの__package__を設定。
+	exec(code, mod.__dict__)  # 実行してモジュールの名前空間を取得。
+	return mod
+def getModuleFolderPath(ctx, smgr, doc):  # 埋め込みモジュールフォルダへのURLを取得。
+	transientdocumentsdocumentcontentfactory = smgr.createInstanceWithContext("com.sun.star.frame.TransientDocumentsDocumentContentFactory", ctx)
+	transientdocumentsdocumentcontent = transientdocumentsdocumentcontentfactory.createDocumentContent(doc)
+	tdocurl = transientdocumentsdocumentcontent.getIdentifier().getContentIdentifier()  # ex. vnd.sun.star.tdoc:/1	
+	return "/".join((tdocurl, "Scripts/python/pythonpath"))  # 開いているドキュメント内の埋め込みマクロフォルダへのパス。g_exportedScripts = macro, #マクロセレクターに限定表示させる関数をタプルで指定。		
+g_exportedScripts = macro, #マクロセレクターに限定表示させる関数をタプルで指定。	
