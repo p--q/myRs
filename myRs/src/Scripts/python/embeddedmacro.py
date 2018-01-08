@@ -41,34 +41,30 @@ def enableRemoteDebugging(func):  # デバッグサーバーに接続したい�
 			import traceback; traceback.print_exc()  # これがないとPyDevのコンソールにトレースバックが表示されない。stderrToServer=Trueが必須。
 	return wrapper
 def macro(documentevent):  # 引数は文書のイベント駆動用。  
+	colors = {"midori": 0x00FF00,\
+			"pink": 0xFF00FF,\
+			"kuro": 0x000000,\
+			"ao": 0xFF0000,\
+			"skyblue": 0xFFCC00,\
+			"gray": 0xC0C0C0,\
+			"aka": 0x0000FF}  # 色の16進数。	
 	doc = documentevent.Source  # ドキュメントのモデルを取得。 
 	ctx = XSCRIPTCONTEXT.getComponentContext()  # コンポーネントコンテクストの取得。
 	smgr = ctx.getServiceManager()  # サービスマネージャーの取得。
 	simplefileaccess = smgr.createInstanceWithContext("com.sun.star.ucb.SimpleFileAccess", ctx)  # SimpleFileAccess
 	modulefolderpath = getModuleFolderPath(ctx, smgr, doc)  # 埋め込みモジュールフォルダへのURLを取得。
 	modules = {}  # 埋め込みマクロのpythonpathフォルダのモジュールを入れる辞書。
-	modulenames = "consts", "history", "ichiran", "karute", "keika", "schedule"  # 埋め込みpythonpathフォルダにあるモジュール名一覧。
+	modulenames = "history", "ichiran", "karute", "keika", "schedule"  # 埋め込みpythonpathフォルダにあるモジュール名一覧。
 	for modulename in modulenames:  # 埋め込みpythonpathフォルダにあるモジュールを辞書modulesに読み込む。
 		modules[modulename] = load_module(simplefileaccess, "".join((modulefolderpath, "/", modulename, ".py")))
 	sheets = doc.getSheets()
 	sheet = sheets["一覧"]  # 一覧シートについて。
-# 	cellranges = sheet[0, :].queryContentCells(CellFlags.STRING)  # 行1の文字列の入っているセルに限定して抽出。
-# 	flg = False
-# 	for cell in cellranges.getCells():
-# 		if cell.getIsMerged():
-# 			modules["consts"].ICHIRAN["leftendcolumn"] = cell.getCellAddress().Column  # 結合セルの左端の列インデックスを取得。
-# 			flg = True
-# 		elif flg:
-# 			modules["consts"].ICHIRAN["rightendcolumn"] = cell.getCellAddress().Column + 1 # 結合セルの右端の列インデックスの右列を取得。
-# 			break
-	
-	
-	
+
 	doc.addChangesListener(ChangesListener(modules, doc))  # ChangesListener	
 	controller = doc.getCurrentController()  # コントローラの取得。
 	selectionchangelistener = SelectionChangeListener(modules, controller)  # SelectionChangeListener
 	controller.addActivationEventListener(ActivationEventListener(modules, controller))  # ActivationEventListener
-	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler(modules, controller, selectionchangelistener))  # EnhancedMouseClickHandler
+	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler(controller, colors, modules, selectionchangelistener))  # EnhancedMouseClickHandler
 	controller.registerContextMenuInterceptor(ContextMenuInterceptor(modules, ctx, smgr, doc))  # コントローラにContextMenuInterceptorを登録する。右クリックの時の対応。
 class ActivationEventListener(unohelper.Base, XActivationEventListener):
 	def __init__(self, modules, controller):
@@ -83,19 +79,18 @@ class ActivationEventListener(unohelper.Base, XActivationEventListener):
 	def disposing(self, eventobject):
 		self.controller.removeActivationEventListener(self)	
 class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
-	def __init__(self, modules, controller, selectionchangelistener):
+	def __init__(self, controller, colors, modules, selectionchangelistener):
 		self.controller = controller
-		self.selectionchangelistener = selectionchangelistener
+		self.args = colors, modules, selectionchangelistener
 	def mousePressed(self, enhancedmouseevent):  # セルをクリックした時に発火する。
+		colors, modules, selectionchangelistener = self.args
 		target = enhancedmouseevent.Target  # ターゲットのセルを取得。
 		if enhancedmouseevent.Buttons==MouseButton.LEFT:  # 左ボタンのとき
-			controller = self.controller
 			sheet = target.getSpreadsheet()
 			sheetname = sheet.getName()  # アクティブシート名を取得。
 			if enhancedmouseevent.ClickCount==1:  # シングルクリックの時
-				modules = self.modules
 				if sheetname=="一覧":
-					modules["ichiran"].singleClick(modules["consts"].COLORS, controller, target)
+					modules["ichiran"].singleClick(colors, self.controller, target)
 					
 				# ここで罫線を引く
 				

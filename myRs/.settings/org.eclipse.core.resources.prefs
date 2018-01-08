@@ -1,6 +1,5 @@
 eclipse.preferences.version=1
 encoding//src/Scripts/python/embeddedmacro.py=utf-8
-encoding//src/Scripts/python/pythonpath/consts.py=utf-8
 encoding//src/Scripts/python/pythonpath/history.py=utf-8
 encoding//src/Scripts/python/pythonpath/ichiran.py=utf-8
 encoding//tools/getEmbeddedScripts.py=utf-8
