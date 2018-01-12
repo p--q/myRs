@@ -53,29 +53,26 @@ def macro(documentevent):  # 引数は文書のイベント駆動用。
 	smgr = ctx.getServiceManager()  # サービスマネージャーの取得。
 	simplefileaccess = smgr.createInstanceWithContext("com.sun.star.ucb.SimpleFileAccess", ctx)  # SimpleFileAccess
 	modulefolderpath = getModuleFolderPath(ctx, smgr, doc)  # 埋め込みモジュールフォルダへのURLを取得。
-	modules = {}  # 埋め込みマクロのpythonpathフォルダのモジュールを入れる辞書。
-	modulenames = "history", "ichiran", "karute", "keika", "schedule"  # 埋め込みpythonpathフォルダにあるモジュール名一覧。
-	for modulename in modulenames:  # 埋め込みpythonpathフォルダにあるモジュールを辞書modulesに読み込む。
-		modules[modulename] = load_module(simplefileaccess, "".join((modulefolderpath, "/", modulename, ".py")))
-	sheets = doc.getSheets()
-	sheet = sheets["一覧"]  # 一覧シートについて。
-
-	doc.addChangesListener(ChangesListener(modules, doc))  # ChangesListener	
+	tdocimport = load_module(simplefileaccess, "/".join((modulefolderpath, "tdocimport.py")))  # import hooks
+	tdocimport.install_meta(simplefileaccess, modulefolderpath)  # modulefolderpathにあるモジュールをインポートできるようにする。
+	from myrs import history, ichiran, karute, keika, schedule
+	
+# 	import myrs.history, myrs.ichiran, myrs.karute, myrs.keika, myrs.schedule
+	doc.addChangesListener(ChangesListener(doc))  # ChangesListener	
 	controller = doc.getCurrentController()  # コントローラの取得。
-	selectionchangelistener = SelectionChangeListener(modules, controller)  # SelectionChangeListener
-	controller.addActivationEventListener(ActivationEventListener(modules, controller))  # ActivationEventListener
-	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler(controller, colors, modules, selectionchangelistener))  # EnhancedMouseClickHandler
-	controller.registerContextMenuInterceptor(ContextMenuInterceptor(modules, ctx, smgr, doc))  # コントローラにContextMenuInterceptorを登録する。右クリックの時の対応。
+	selectionchangelistener = SelectionChangeListener(controller)  # SelectionChangeListener
+	controller.addActivationEventListener(ActivationEventListener(controller))  # ActivationEventListener
+	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler(controller, colors, selectionchangelistener))  # EnhancedMouseClickHandler
+	controller.registerContextMenuInterceptor(ContextMenuInterceptor(ctx, smgr, doc))  # コントローラにContextMenuInterceptorを登録する。右クリックの時の対応。
 class ActivationEventListener(unohelper.Base, XActivationEventListener):
-	def __init__(self, modules, controller):
+	def __init__(self, controller):
 		self.controller = controller
-		self.modules = modules
 # 	@enableRemoteDebugging
 	def activeSpreadsheetChanged(self, activationevent):  # アクティブシートが変化した時に発火。
 		sheet = activationevent.ActiveSheet  # アクティブになったシートを取得。
 		sheetname = sheet.getName()  # アクティブシート名を取得。
 		if sheetname=="一覧":
-			self.modules["ichiran"].activeSpreadsheetChanged(sheet)
+			myrs.ichiran.activeSpreadsheetChanged(sheet)
 	def disposing(self, eventobject):
 		self.controller.removeActivationEventListener(self)	
 class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):

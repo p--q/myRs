@@ -30,9 +30,9 @@ def main():
 	doc.store()  # ドキュメントを保存する。
 	doc.close(True)  # ドキュメントを閉じる。
 	simplefileaccess.copy(source_fileurl, python_pkgurl)  # 埋め込みマクロフォルダにコピーする。開いているドキュメントでは書き込みが反映されない時があるので閉じたドキュメントにする。
-	if flg:  # ドキュメントが開いていた時はマクロを有効にして開き直す。
-		propertyvalues = PropertyValue(Name = "MacroExecutionMode", Value=MacroExecMode.ALWAYS_EXECUTE_NO_WARN),  # マクロを実行可能にする。
-		desktop.loadComponentFromURL(doc_fileurl, "_blank", 0, propertyvalues)  # ドキュメントを開く。
+# 	if flg:  # ドキュメントが開いていた時はマクロを有効にして開き直す。
+# 		propertyvalues = PropertyValue(Name = "MacroExecutionMode", Value=MacroExecMode.ALWAYS_EXECUTE_NO_WARN),  # マクロを実行可能にする。
+# 		desktop.loadComponentFromURL(doc_fileurl, "_blank", 0, propertyvalues)  # ドキュメントを開く。
 	print("Replaced the embedded macro folder in {} with {}.".format(ods, source_path))
 def getVndSunStarPkgUrl(ctx, smgr, doc_fileurl):  # pkgurlの取得。
 	urireferencefactory = smgr.createInstanceWithContext("com.sun.star.uri.UriReferenceFactory", ctx)  # UriReferenceFactory
