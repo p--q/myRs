@@ -12,7 +12,7 @@ from com.sun.star.view import XSelectionChangeListener
 from com.sun.star.sheet import XActivationEventListener
 from com.sun.star.sheet import CellFlags  # 定数
 from com.sun.star.document import XDocumentEventListener
-from myrs import consts  # 相対インポートは不可。
+from myrs import consts, ichiran  # 相対インポートは不可。
 def myRs(tdocimport, modulefolderpath, xscriptcontext):  # 引数は文書のイベント駆動用。この関数ではXSCRIPTCONTEXTは使えない。  
 	doc = xscriptcontext.getDocument()  # ドキュメントのモデルを取得。 
 	ctx = xscriptcontext.getComponentContext()  # コンポーネントコンテクストの取得。
@@ -23,6 +23,8 @@ def myRs(tdocimport, modulefolderpath, xscriptcontext):  # 引数は文書のイ
 # 	selectionchangelistener = SelectionChangeListener(controller)  # SelectionChangeListener
 # 	controller.addActivationEventListener(ActivationEventListener(controller))  # ActivationEventListener
 # 	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler(controller, selectionchangelistener))  # EnhancedMouseClickHandler
+
+
 	controller.registerContextMenuInterceptor(ContextMenuInterceptor(ctx, smgr, doc))  # コントローラにContextMenuInterceptorを登録する。右クリックの時の対応。
 # class DocumentEventListener(unohelper.Base, XDocumentEventListener):
 # 	def __init__(self, subj, tdocimport, modulefolderpath):
@@ -110,40 +112,29 @@ class ContextMenuInterceptor(unohelper.Base, XContextMenuInterceptor):  # コン
 		contextmenu = contextmenuexecuteevent.ActionTriggerContainer  # コンテクストメニューコンテナの取得。
 		name = contextmenu.getName().rsplit("/")[-1]  # コンテクストメニューの名前を取得。
 		addMenuentry = menuentryCreator(contextmenu)  # 引数のActionTriggerContainerにインデックス0から項目を挿入する関数を取得。
-		if name=="cell":  # セルのとき
-			del contextmenu[:]  # contextmenu.clear()は不可。
-			if target.supportsService("com.sun.star.sheet.SheetCell"):  # ターゲットがセルの時。
-				addMenuentry("ActionTrigger", {"Text": "To blue", "CommandURL": baseurl.format(toBlue.__name__)})  # 引数のない関数名を渡す。
-			elif target.supportsService("com.sun.star.sheet.SheetCellRange"):  # ターゲットがセル範囲の時。
-				addMenuentry("ActionTrigger", {"Text": "To red", "CommandURL": baseurl.format(toRed.__name__)})  # 引数のない関数名を渡す。
-			addMenuentry("ActionTriggerSeparator", {"SeparatorType": ActionTriggerSeparatorType.LINE})  # セパレーターを挿入。
-			addMenuentry("ActionTrigger", {"CommandURL": ".uno:Cut"})
-			addMenuentry("ActionTrigger", {"CommandURL": ".uno:Copy"})
-			addMenuentry("ActionTrigger", {"CommandURL": ".uno:Paste"})
-		elif name=="rowheader":  # 行ヘッダーのとき。
-			del contextmenu[:]  # contextmenu.clear()は不可。
-			addMenuentry("ActionTrigger", {"CommandURL": ".uno:Cut"})
-			addMenuentry("ActionTrigger", {"CommandURL": ".uno:Copy"})
-			addMenuentry("ActionTrigger", {"CommandURL": ".uno:Paste"})
-			addMenuentry("ActionTriggerSeparator", {"SeparatorType": ActionTriggerSeparatorType.LINE})
-			addMenuentry("ActionTrigger", {"CommandURL": ".uno:InsertRowsBefore"})
-			addMenuentry("ActionTrigger", {"CommandURL": ".uno:DeleteRows"}) 
-		elif name=="colheader":  # 列ヘッダーの時。
-			pass  # contextmenuを操作しないとすべての項目が表示されない。
-		elif name=="sheettab":  # シートタブの時。
-			del contextmenu[:]  # contextmenu.clear()は不可。
-			addMenuentry("ActionTrigger", {"CommandURL": ".uno:Move"})
+		
+		
+		ichiran.notifycontextmenuexecute(addMenuentry, baseurl, contextmenu, target, name)
 		return EXECUTE_MODIFIED	  # このContextMenuInterceptorでコンテクストメニューのカスタマイズを終わらす。
-def toBlue():
-	colors = consts.COLORS
+def entry1():
+	invokeMenuEntry(1)
+def entry2():
+	invokeMenuEntry(2)	
+	
+	
+	
+def invokeMenuEntry(entrynum):
 	doc = XSCRIPTCONTEXT.getDocument()  # ドキュメントのモデルを取得。 
-	target = doc.getCurrentSelection()
-	target.setPropertyValue("CellBackColor", colors["ao"])  # 背景を青色にする。
-def toRed():
-	colors = consts.COLORS
-	doc = XSCRIPTCONTEXT.getDocument()  # ドキュメントのモデルを取得。 
-	target = doc.getCurrentSelection()
-	target.setPropertyValue("CellBackColor", colors["aka"])  # 背景を青色にする。
+	selection = doc.getCurrentSelection()  # セル(セル範囲)またはセル範囲、セル範囲コレクションが入るはず。
+	if selection.supportsService("com.sun.star.sheet.SheetCellRange"):  # セル範囲コレクション以外の時。
+		sheet = selection.getSpreadsheet()  # シートを取得。
+		sheetname = sheet.getName()
+		if sheetname=="一覧":
+			ichiran.contextMenuEntries(selection, entrynum)
+		
+		
+
+
 
 
 def menuentryCreator(menucontainer):  # 引数のActionTriggerContainerにインデックス0から項目を挿入する関数を取得。

@@ -11,8 +11,8 @@ def macro(documentevent=None):  # 引数は文書のイベント駆動用。
 	modulefolderpath = getModuleFolderPath(ctx, smgr, doc)  # 埋め込みpythonpathフォルダのパスを取得。
 	tdocimport = load_module(simplefileaccess, "/".join((modulefolderpath, "tdocimport.py")))  # import hooks
 	tdocimport.install_meta(simplefileaccess, modulefolderpath)
-	from myrs import listeners
-	listeners.myRs(tdocimport, modulefolderpath, XSCRIPTCONTEXT)
+	from myrs import listeners  # ここでインポートしたモジュールの関数だけなぜかXSCRIPTCONTEXTが使えない。
+	listeners.myRs(tdocimport, modulefolderpath, XSCRIPTCONTEXT)  # tdocimportとmodulefolderpathは最後にremoveするために渡す。
 def load_module(simplefileaccess, modulepath):
 	inputstream = simplefileaccess.openFileRead(modulepath)
 	dummy, b = inputstream.readBytes([], inputstream.available())  # simplefileaccess.getSize(module_tdocurl)は0が返る。
