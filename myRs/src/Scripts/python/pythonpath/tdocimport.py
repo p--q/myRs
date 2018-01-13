@@ -6,16 +6,16 @@
 import sys
 import importlib.abc
 from types import ModuleType
-def _get_links(simplefileaccess, url):
-	foldercontents = simplefileaccess.getFolderContents(url, True)  # フルパスで返ってくる。
-	tdocpath = "".join((url, "/"))
-	return [content.replace(tdocpath, "") for content in foldercontents]
+def _get_links(simplefileaccess, url):  # url内のファイル名とフォルダ名のリストを返す関数。
+	foldercontents = simplefileaccess.getFolderContents(url, True)  # url内のファイルとフォルダをすべて取得。フルパスで返ってくる。
+	tdocpath = "".join((url, "/"))  # 除去するパスの部分を作成。
+	return [content.replace(tdocpath, "") for content in foldercontents]  # ファイル名かフォルダ名だけのリストにして返す。
 class UrlMetaFinder(importlib.abc.MetaPathFinder):  # meta path finderの実装。
 	def __init__(self, simplefileaccess, baseurl):
-		self._simplefileaccess = simplefileaccess
-		self._baseurl = baseurl
-		self._links   = {}
-		self._loaders = {baseurl: UrlModuleLoader(simplefileaccess, baseurl)}
+		self._simplefileaccess = simplefileaccess  # LibreOfficeドキュメント内のファイルにアクセスするためのsimplefileaccess
+		self._baseurl = baseurl  # モジュールを探すパス
+		self._links   = {}  # baseurl内のファイル名とフォルダ名のリストのキャッシュにする辞書。。
+		self._loaders = {baseurl: UrlModuleLoader(simplefileaccess, baseurl)}  # ローダーのキャッシュにする辞書。
 	def find_module(self, fullname, path=None):  # find_moduleはPython3.4で撤廃だが、find_spec()にしてもそのままではうまく動かない。
 		if path is None:
 			baseurl = self._baseurl
@@ -46,48 +46,48 @@ class UrlMetaFinder(importlib.abc.MetaPathFinder):  # meta path finderの実装�
 		self._links.clear()
 class UrlModuleLoader(importlib.abc.SourceLoader):  # Module Loader for a URL
 	def __init__(self, simplefileaccess, baseurl):
-		self._simplefileaccess = simplefileaccess
-		self._baseurl = baseurl
-		self._source_cache = {}
-	def module_repr(self, module):
+		self._simplefileaccess = simplefileaccess  # LibreOfficeドキュメント内のファイルにアクセスするためのsimplefileaccess
+		self._baseurl = baseurl  # モジュールを探すパス
+		self._source_cache = {}  # ソースのキャッシュの辞書。
+	def module_repr(self, module):  # モジュールを表す文字列を返す。
 		return '<urlmodule {} from {}>'.format(module.__name__, module.__file__)
-	def load_module(self, fullname):  # Required method
-		code = self.get_code(fullname)
-		mod = sys.modules.setdefault(fullname, ModuleType(fullname))
-		mod.__file__ = self.get_filename(fullname)
-		mod.__loader__ = self
-		mod.__package__ = fullname.rpartition('.')[0]
-		exec(code, mod.__dict__)
-		return mod
-	def get_code(self, fullname):  # Optional extensions
+	def load_module(self, fullname):  # Required method。引数はimport文で使うフルネーム。
+		code = self.get_code(fullname)  # モジュールのコードオブジェクトを取得。
+		mod = sys.modules.setdefault(fullname, ModuleType(fullname))  # 辞書sys.modulesにキーfullnameなければ値を代入して値を取得。
+		mod.__file__ = self.get_filename(fullname)  # ソースファイルへのフルパスを取得。
+		mod.__loader__ = self  # ローダーを取得。
+		mod.__package__ = fullname.rpartition('.')[0]  # パッケージ名を取得。.区切りがないときは空文字が入る。
+		exec(code, mod.__dict__)  # コードオブジェクトを実行する。
+		return mod  # モジュールオブジェクトを返す。
+	def get_code(self, fullname):  # モジュールのコードオブジェクトを返す。Optional extensions。引数はimport文で使うフルネーム。
 		src = self.get_source(fullname)
 		return compile(src, self.get_filename(fullname), 'exec')
-	def get_data(self, path):
+	def get_data(self, path):  # バイナリ文字列を返す。
 		pass
-	def get_filename(self, fullname):
+	def get_filename(self, fullname):  # ソースファイルへのフルパスを返す。引数はimport文で使うフルネーム。
 		return "".join((self._baseurl, '/', fullname.split('.')[-1], '.py'))
-	def get_source(self, fullname):
-		filename = self.get_filename(fullname)
-		if filename in self._source_cache:
+	def get_source(self, fullname):  # モジュールのソースをテキストで返す。
+		filename = self.get_filename(fullname)  # ソースファイルへのフルパス。
+		if filename in self._source_cache:  # すでにキャッシュがあればそれを返して終わる。
 			return self._source_cache[filename]
 		try:
-			inputstream = self._simplefileaccess.openFileRead(filename)
+			inputstream = self._simplefileaccess.openFileRead(filename)  # ソースファイルのインプットストリームを取得。
 			dummy, b = inputstream.readBytes([], inputstream.available())  # simplefileaccess.getSize(module_tdocurl)は0が返る。
-			source = bytes(b).decode("utf-8")  # モジュールのソースをテキストで取得。
-			self._source_cache[filename] = source
-			return source
+			source = bytes(b).decode("utf-8")  # モジュールのソースファイルをutf-8のテキストで取得。
+			self._source_cache[filename] = source  # ソースをキャッシュに取得。
+			return source  # ソースのテキストを返す。
 		except:
 			raise ImportError("Can't load {}".format(filename))
-	def is_package(self, fullname):
+	def is_package(self, fullname):  # パッケージの時はTrueを返す。
 		return False
 class UrlPackageLoader(UrlModuleLoader):  # Package loader for a URL
-	def load_module(self, fullname):
-		mod = super().load_module(fullname)
-		mod.__path__ = [self._baseurl]
-		mod.__package__ = fullname
-	def get_filename(self, fullname):  # パッケージの時はまず__init__.pyを実行。
+	def load_module(self, fullname):  # fullnameはパッケージのときはフォルダ名に該当する。
+		mod = super().load_module(fullname)  # __init__.pyを実行する。
+		mod.__path__ = [self._baseurl]  # パッケージ内の検索パスを指定する文字列のリスト
+		mod.__package__ = fullname  # フォルダ名を入れる。
+	def get_filename(self, fullname):  # パッケージの__init__.pyを返す。
 		return "/".join((self._baseurl, '__init__.py'))
-	def is_package(self, fullname):
+	def is_package(self, fullname):  # パッケージの時はTrueを返す。
 		return True
 _installed_meta_cache = {}  # meta path finderを入れておくグローバル辞書。重複を防ぐ目的。
 def install_meta(simplefileaccess, address):  # Utility functions for installing the loader
