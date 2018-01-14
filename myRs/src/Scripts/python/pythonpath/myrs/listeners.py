@@ -1,142 +1,230 @@
 #!/opt/libreoffice5.4/program/python
 # -*- coding: utf-8 -*-
+# embeddedmacro.pyから呼び出した関数ではXSCRIPTCONTEXTは使えない。デコレーターも使えない。import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)でブレークする。
 import unohelper  # オートメーションには必須(必須なのはuno)。
 import os
 from com.sun.star.awt import XEnhancedMouseClickHandler
-from com.sun.star.awt import MouseButton  # 定数
 from com.sun.star.ui import XContextMenuInterceptor
 from com.sun.star.ui.ContextMenuInterceptorAction import EXECUTE_MODIFIED  # enum
-from com.sun.star.ui import ActionTriggerSeparatorType  # 定数
 from com.sun.star.util import XChangesListener
 from com.sun.star.view import XSelectionChangeListener
 from com.sun.star.sheet import XActivationEventListener
-from com.sun.star.sheet import CellFlags  # 定数
 from com.sun.star.document import XDocumentEventListener
-from myrs import consts, ichiran  # 相対インポートは不可。
+from com.sun.star.table import BorderLine2  # Struct
+from com.sun.star.table import BorderLineStyle  # 定数
+from myrs import commons, ichiran, karute, keika, rireki, taiin, yotei  # 相対インポートは不可。
 def myRs(tdocimport, modulefolderpath, xscriptcontext):  # 引数は文書のイベント駆動用。この関数ではXSCRIPTCONTEXTは使えない。  
+	
 	doc = xscriptcontext.getDocument()  # ドキュメントのモデルを取得。 
+	
+	
+	
 	ctx = xscriptcontext.getComponentContext()  # コンポーネントコンテクストの取得。
 	smgr = ctx.getServiceManager()  # サービスマネージャーの取得。
-# 	doc.addChangesListener(ChangesListener(doc))  # ChangesListener	
-# 	doc.addDocumentEventListener(DocumentEventListener(doc, tdocimport, modulefolderpath))  # DocumentEventListener	
+	doc.addChangesListener(ChangesListener())  # ChangesListener	
+	doc.addDocumentEventListener(DocumentEventListener(tdocimport, modulefolderpath))  # DocumentEventListener	
 	controller = doc.getCurrentController()  # コントローラの取得。
-# 	selectionchangelistener = SelectionChangeListener(controller)  # SelectionChangeListener
-# 	controller.addActivationEventListener(ActivationEventListener(controller))  # ActivationEventListener
-# 	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler(controller, selectionchangelistener))  # EnhancedMouseClickHandler
-
-
+	controller.addSelectionChangeListener(SelectionChangeListener())
+	controller.addActivationEventListener(ActivationEventListener())  # ActivationEventListener
+	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler(controller))  # EnhancedMouseClickHandler。このリスナーのメソッドの引数からコントローラーを取得する方法がない。
 	controller.registerContextMenuInterceptor(ContextMenuInterceptor(ctx, smgr, doc))  # コントローラにContextMenuInterceptorを登録する。右クリックの時の対応。
-# class DocumentEventListener(unohelper.Base, XDocumentEventListener):
-# 	def __init__(self, subj, tdocimport, modulefolderpath):
-# 		self.subj = subj
-# 		self.args = tdocimport, modulefolderpath
-# 	def documentEventOccured(self, documentevent):
-# 		tdocimport, modulefolderpath = self.args
-# 		eventname = documentevent.EventName
-# 		if eventname=="OnUnload":  # ドキュメントを閉じる時。
-# 			tdocimport.remove_meta(modulefolderpath)  # modulefolderpathをメタパスから除去する。
-# 	def disposing(self, eventobject):	
-# 		self.subj.removeDocumentEventListener(self)
-# class ActivationEventListener(unohelper.Base, XActivationEventListener):
-# 	def __init__(self, controller):
-# 		self.controller = controller
-# 	def activeSpreadsheetChanged(self, activationevent):  # アクティブシートが変化した時に発火。
-# 		sheet = activationevent.ActiveSheet  # アクティブになったシートを取得。
-# 		sheetname = sheet.getName()  # アクティブシート名を取得。
-# 		if sheetname=="一覧":
-# 			ichiran.activeSpreadsheetChanged(sheet)
-# 	def disposing(self, eventobject):
-# 		self.controller.removeActivationEventListener(self)	
-# class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
-# 	def __init__(self, controller, colors, modules, selectionchangelistener):
-# 		self.controller = controller
-# 		self.args = colors, modules, selectionchangelistener
-# 	def mousePressed(self, enhancedmouseevent):  # セルをクリックした時に発火する。
-# 		colors, modules, selectionchangelistener = self.args
-# 		target = enhancedmouseevent.Target  # ターゲットのセルを取得。
-# 		if enhancedmouseevent.Buttons==MouseButton.LEFT:  # 左ボタンのとき
-# 			sheet = target.getSpreadsheet()
-# 			sheetname = sheet.getName()  # アクティブシート名を取得。
-# 			if enhancedmouseevent.ClickCount==1:  # シングルクリックの時
-# 				if sheetname=="一覧":
-# 					ichiran.singleClick(colors, self.controller, target)
-# 					
-# 				# ここで罫線を引く
-# 				
-# # 				controller.addSelectionChangeListener(self.selectionchangelistener)
-# 			
-# 			elif enhancedmouseevent.ClickCount==2:  # ダブルクリックの時
-# 				celladdress = target.getCellAddress()  # ターゲットのセルアドレスを取得。
-# # 				if controller.hasFrozenPanes():  # 表示→セルの固定、がされている時。
-# # 					splitrow = controller.getSplitRow()
-# # 					splitcolumn = controller.getSplitColumn()
-# 				return False  # セル編集モードにしない。
-# 		return True  # Falseを返すと右クリックメニューがでてこなくなる。		
-# 	def mouseReleased(self, enhancedmouseevent):
-# 		if enhancedmouseevent.Buttons==MouseButton.LEFT:  # 左ボタンのとき
-# 			if enhancedmouseevent.ClickCount==1:  # シングルクリックの時		
-# 				try:
-# 					self.controller.removeSelectionChangeListener(self.selectionchangelistener)		
-# 				except:
-# 					pass
-# 		return True
-# 	def disposing(self, eventobject):
-# 		self.controller.removeEnhancedMouseClickHandler(self)	
-# class SelectionChangeListener(unohelper.Base, XSelectionChangeListener):
-# 	def __init__(self, modules, controller):
-# 		self.controller = controller
-# 	def selectionChanged(self, eventobject):
-# 		controller = self.controller
-# 		selection = controller.getSelection()  # 選択しているオブジェクトを取得。
-# 	def disposing(self, eventobject):
-# 		self.controller.removeSelectionChangeListener(self)		
-# class ChangesListener(unohelper.Base, XChangesListener):
-# 	def __init__(self, modules, doc):
-# 		self.subj = doc
-# 	def changesOccurred(self, changesevent):
+class DocumentEventListener(unohelper.Base, XDocumentEventListener):
+	def __init__(self, tdocimport, modulefolderpath):
+		self.args = tdocimport, modulefolderpath
+	def documentEventOccured(self, documentevent):
+		tdocimport, modulefolderpath = self.args
+		eventname = documentevent.EventName
+		if eventname=="OnUnload":  # ドキュメントを閉じる時。
+			tdocimport.remove_meta(modulefolderpath)  # modulefolderpathをメタパスから除去する。
+	def disposing(self, eventobject):	
+		eventobject.Source.removeDocumentEventListener(self)
+class ActivationEventListener(unohelper.Base, XActivationEventListener):
+	def activeSpreadsheetChanged(self, activationevent):  # アクティブシートが変化した時に発火。
+# 		import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)
+		sheet = activationevent.ActiveSheet  # アクティブになったシートを取得。
+		sheetname = sheet.getName()  # アクティブシート名を取得。
+		if sheetname.isdigit():  # シート名が数字のみの時カルテシート。
+			pass
+		elif sheetname.endswith("経"):  # シート名が「経」で終わる時は経過シート。
+			pass
+		elif sheetname=="一覧":
+			ichiran.activeSpreadsheetChanged(sheet)
+		elif sheetname=="予定":
+			pass
+		elif sheetname=="退院":
+			pass
+		elif sheetname=="履歴":
+			pass
+	def disposing(self, eventobject):
+		eventobject.Source.removeActivationEventListener(self)	
+class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
+	def __init__(self, controller):
+		self.controller = controller
+		colors = commons.COLORS
+		noneline = BorderLine2(LineStyle=BorderLineStyle.NONE)
+		firstline = BorderLine2(LineStyle=BorderLineStyle.DASHED, LineWidth=62, Color=colors["clearblue"])
+		secondline =  BorderLine2(LineStyle=BorderLineStyle.DASHED, LineWidth=62, Color=colors["magenta"])
+		self.args = noneline, firstline, secondline
+	def mousePressed(self, enhancedmouseevent):  # セルをクリックした時に発火する。
+		target = enhancedmouseevent.Target  # ターゲットのセルを取得。
+		if target.supportsService("com.sun.star.sheet.SheetCellRange"):  # targetがチャートの時がありうる?
+			sheet = target.getSpreadsheet()
+			sheetname = sheet.getName()
+			if sheetname.isdigit():  # シート名が数字のみの時カルテシート。
+				return True
+			elif sheetname.endswith("経"):  # シート名が「経」で終わる時は経過シート。
+				return True
+			elif sheetname=="一覧":
+				return ichiran.mousePressed(enhancedmouseevent, sheet, target, self.args)
+			elif sheetname=="予定":
+				return True
+			elif sheetname=="退院":
+				return True
+			elif sheetname=="履歴":
+				return True
+		return True  # Falseを返すと右クリックメニューがでてこなくなる。		
+	def mouseReleased(self, enhancedmouseevent):
+		target = enhancedmouseevent.Target  # ターゲットのセルを取得。マウスボタンを離した時。複数セルを選択した後でもtargetはセルしか入らない。
+		if target.supportsService("com.sun.star.sheet.SheetCellRange"):  # targetがチャートの時がありうる?
+			sheet = target.getSpreadsheet()
+			sheetname = sheet.getName()
+			if sheetname.isdigit():  # シート名が数字のみの時カルテシート。
+				return True
+			elif sheetname.endswith("経"):  # シート名が「経」で終わる時は経過シート。
+				return True
+			elif sheetname=="一覧":
+				doc = self.controller.getModel()  # ドキュメントを取得。モデルを渡すと選択セルの変更が反映されていない可能性がある。
+				return ichiran.mouseReleased(enhancedmouseevent, doc, sheet, target, self.args)
+			elif sheetname=="予定":
+				return True
+			elif sheetname=="退院":
+				return True
+			elif sheetname=="履歴":
+				return True
+		return True
+	def disposing(self, eventobject):  # eventobject.SourceはNone。
+		self.controller.removeEnhancedMouseClickHandler(self)	
+class SelectionChangeListener(unohelper.Base, XSelectionChangeListener):
+	def __init__(self):
+		colors = commons.COLORS
+		noneline = BorderLine2(LineStyle=BorderLineStyle.NONE)
+		firstline = BorderLine2(LineStyle=BorderLineStyle.DASHED, LineWidth=62, Color=colors["clearblue"])
+		secondline =  BorderLine2(LineStyle=BorderLineStyle.DASHED, LineWidth=62, Color=colors["magenta"])
+		self.args = noneline, firstline, secondline	
+	def selectionChanged(self, eventobject):  # マウスから呼び出した時の反応が遅い。
+# 		import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)
+		controller = eventobject.Source
+		sheet = controller.getActiveSheet()
+		sheetname = sheet.getName()  # アクティブシート名を取得。		
+		if sheetname.isdigit():  # シート名が数字のみの時カルテシート。
+			pass
+		elif sheetname.endswith("経"):  # シート名が「経」で終わる時は経過シート。
+			pass
+		elif sheetname=="一覧":
+			ichiran.selectionChanged(controller, sheet, self.args)
+		elif sheetname=="予定":
+			pass
+		elif sheetname=="退院":
+			pass
+		elif sheetname=="履歴":
+			pass			
+	def disposing(self, eventobject):
+		eventobject.Source.removeSelectionChangeListener(self)		
+class ChangesListener(unohelper.Base, XChangesListener):
+	def changesOccurred(self, changesevent):  # Sourceにはドキュメントが入る。
+		doc = changesevent.Source
+		controller = doc.getCurrentController()
+		sheet = controller.getActiveSheet()
+		sheetname = sheet.getName()  # アクティブシート名を取得。
+		if sheetname.isdigit():  # シート名が数字のみの時カルテシート。
+			pass
+		elif sheetname.endswith("経"):  # シート名が「経」で終わる時は経過シート。
+			pass
+		elif sheetname=="一覧":
+			pass
+		elif sheetname=="予定":
+			pass
+		elif sheetname=="退院":
+			pass
+		elif sheetname=="履歴":
+			pass		
+		
+		
+		
+		
 # 		changes = changesevent.Changes
 # 		for change in changes:
 # 			accessor = change.Accessor
 # 			if accessor=="cell-change":  # セルの内容が変化した時。
-# 				cell = change.ReplacedElement  # 変化したセルを取得。				
-# 	def disposing(self, eventobject):
-# 		self.doc.removeChangesListener(self)			
+# 				cell = change.ReplacedElement  # 変化したセルを取得。		
+				
+						
+	def disposing(self, eventobject):
+		eventobject.Source.removeChangesListener(self)			
 class ContextMenuInterceptor(unohelper.Base, XContextMenuInterceptor):  # コンテクストメニューのカスタマイズ。
 	def __init__(self, ctx, smgr, doc):
 		self.args = getBaseURL(ctx, smgr, doc)  # ScriptingURLのbaseurlを取得。
 	def notifyContextMenuExecute(self, contextmenuexecuteevent):  # 右クリックで呼ばれる関数。contextmenuexecuteevent.ActionTriggerContainerを操作しないとコンテクストメニューが表示されない。
-# 		import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True) 
+# 		import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)
 		baseurl = self.args 
 		controller = contextmenuexecuteevent.Selection  # コントローラーは逐一取得しないとgetSelection()が反映されない。
-		target = controller.getSelection()  # 選択しているオブジェクトを取得。
 		contextmenu = contextmenuexecuteevent.ActionTriggerContainer  # コンテクストメニューコンテナの取得。
-		name = contextmenu.getName().rsplit("/")[-1]  # コンテクストメニューの名前を取得。
+		contextmenuname = contextmenu.getName().rsplit("/")[-1]  # コンテクストメニューの名前を取得。
 		addMenuentry = menuentryCreator(contextmenu)  # 引数のActionTriggerContainerにインデックス0から項目を挿入する関数を取得。
-		
-		
-		ichiran.notifycontextmenuexecute(addMenuentry, baseurl, contextmenu, target, name)
+		sheet = controller.getActiveSheet()  # アクティブシートを取得。
+		sheetname = sheet.getName()  # シート名を取得。
+		if sheetname.isdigit():  # シート名が数字のみの時カルテシート。
+			karute.notifycontextmenuexecute(addMenuentry, baseurl, contextmenu, controller, contextmenuname)
+		elif sheetname.endswith("経"):  # シート名が「経」で終わる時は経過シート。
+			keika.notifycontextmenuexecute(addMenuentry, baseurl, contextmenu, controller, contextmenuname)
+		elif sheetname=="一覧":
+			ichiran.notifycontextmenuexecute(addMenuentry, baseurl, contextmenu, controller, contextmenuname)
+		elif sheetname=="予定":
+			yotei.notifycontextmenuexecute(addMenuentry, baseurl, contextmenu, controller, contextmenuname)
+		elif sheetname=="退院":
+			taiin.notifycontextmenuexecute(addMenuentry, baseurl, contextmenu, controller, contextmenuname)
+		elif sheetname=="履歴":
+			rireki.notifycontextmenuexecute(addMenuentry, baseurl, contextmenu, controller, contextmenuname)
 		return EXECUTE_MODIFIED	  # このContextMenuInterceptorでコンテクストメニューのカスタマイズを終わらす。
+# ContextMenuInterceptorのnotifyContextMenuExecute()メソッドで設定したメニュー項目から呼び出される関数。関数名変更不可。動的生成も不可。
 def entry1():
 	invokeMenuEntry(1)
 def entry2():
 	invokeMenuEntry(2)	
+def entry3():
+	invokeMenuEntry(3)	
+def entry4():
+	invokeMenuEntry(4)
+def entry5():
+	invokeMenuEntry(5)
+def entry6():
+	invokeMenuEntry(6)
+def entry7():
+	invokeMenuEntry(7)
+def entry8():
+	invokeMenuEntry(8)
+def entry9():
+	invokeMenuEntry(9)	
 	
 	
-	
-def invokeMenuEntry(entrynum):
+def invokeMenuEntry(entrynum):  # コンテクストメニュー項目から呼び出された処理をシートごとに振り分ける。
 	doc = XSCRIPTCONTEXT.getDocument()  # ドキュメントのモデルを取得。 
 	selection = doc.getCurrentSelection()  # セル(セル範囲)またはセル範囲、セル範囲コレクションが入るはず。
 	if selection.supportsService("com.sun.star.sheet.SheetCellRange"):  # セル範囲コレクション以外の時。
 		sheet = selection.getSpreadsheet()  # シートを取得。
-		sheetname = sheet.getName()
-		if sheetname=="一覧":
+		sheetname = sheet.getName()  # シート名を取得。
+		if sheetname.isdigit():  # シート名が数字のみの時カルテシート。
+			karute.contextMenuEntries(selection, entrynum)
+		elif sheetname.endswith("経"):  # シート名が「経」で終わる時は経過シート。
+			keika.contextMenuEntries(selection, entrynum)
+		elif sheetname=="一覧":
 			ichiran.contextMenuEntries(selection, entrynum)
-		
-		
-
-
-
-
+		elif sheetname=="予定":
+			yotei.contextMenuEntries(selection, entrynum)
+		elif sheetname=="退院":
+			taiin.contextMenuEntries(selection, entrynum)
+		elif sheetname=="履歴":
+			rireki.contextMenuEntries(selection, entrynum)
 def menuentryCreator(menucontainer):  # 引数のActionTriggerContainerにインデックス0から項目を挿入する関数を取得。
 	i = 0  # インデックスを初期化する。
 	def addMenuentry(menutype, props):  # i: index, propsは辞書。menutypeはActionTriggerかActionTriggerSeparator。
