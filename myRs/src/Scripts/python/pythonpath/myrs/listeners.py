@@ -13,6 +13,7 @@ from com.sun.star.document import XDocumentEventListener
 from com.sun.star.table import BorderLine2  # Struct
 from com.sun.star.table import BorderLineStyle  # 定数
 from myrs import commons, ichiran, karute, keika, rireki, taiin, yotei  # 相対インポートは不可。
+
 def myRs(tdocimport, modulefolderpath, xscriptcontext):  # 引数は文書のイベント駆動用。この関数ではXSCRIPTCONTEXTは使えない。  
 	
 	doc = xscriptcontext.getDocument()  # ドキュメントのモデルを取得。 
@@ -93,8 +94,9 @@ class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
 			elif sheetname.endswith("経"):  # シート名が「経」で終わる時は経過シート。
 				return True
 			elif sheetname=="一覧":
-				doc = self.controller.getModel()  # ドキュメントを取得。モデルを渡すと選択セルの変更が反映されていない可能性がある。
-				return ichiran.mouseReleased(enhancedmouseevent, doc, sheet, target, self.args)
+				pass
+# 				doc = self.controller.getModel()  # ドキュメントを取得。モデルを渡すと選択セルの変更が反映されていない可能性がある。
+# 				return ichiran.mouseReleased(enhancedmouseevent, doc, sheet, target, self.args)
 			elif sheetname=="予定":
 				return True
 			elif sheetname=="退院":
