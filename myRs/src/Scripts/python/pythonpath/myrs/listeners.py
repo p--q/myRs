@@ -103,7 +103,7 @@ class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
 				return True
 			elif sheetname=="履歴":
 				return True
-		return True
+		return True  # シングルクリックでFalseを返すとセル選択範囲の決定の状態になってどうしようもなくなる。
 	def disposing(self, eventobject):  # eventobject.SourceはNone。
 		self.controller.removeEnhancedMouseClickHandler(self)	
 class SelectionChangeListener(unohelper.Base, XSelectionChangeListener):
