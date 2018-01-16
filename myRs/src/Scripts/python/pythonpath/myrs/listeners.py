@@ -12,6 +12,7 @@ from com.sun.star.sheet import XActivationEventListener
 from com.sun.star.document import XDocumentEventListener
 from com.sun.star.table import BorderLine2  # Struct
 from com.sun.star.table import BorderLineStyle  # 定数
+from com.sun.star.table import TableBorder2  # Struct
 from myrs import commons, ichiran, karute, keika, rireki, taiin, yotei  # 相対インポートは不可。
 
 def myRs(tdocimport, modulefolderpath, xscriptcontext):  # 引数は文書のイベント駆動用。この関数ではXSCRIPTCONTEXTは使えない。  
@@ -25,9 +26,17 @@ def myRs(tdocimport, modulefolderpath, xscriptcontext):  # 引数は文書のイ
 	doc.addChangesListener(ChangesListener())  # ChangesListener	
 	doc.addDocumentEventListener(DocumentEventListener(tdocimport, modulefolderpath))  # DocumentEventListener	
 	controller = doc.getCurrentController()  # コントローラの取得。
-	controller.addSelectionChangeListener(SelectionChangeListener())
+	# 枠線の作成。
+	noneline = BorderLine2(LineStyle=BorderLineStyle.NONE)
+	firstline = BorderLine2(LineStyle=BorderLineStyle.DASHED, LineWidth=62, Color=commons.COLORS["clearblue"])
+	secondline =  BorderLine2(LineStyle=BorderLineStyle.DASHED, LineWidth=62, Color=commons.COLORS["magenta"])	
+	tableborder2 = TableBorder2(TopLine=firstline, LeftLine=firstline, RightLine=secondline, BottomLine=secondline, IsTopLineValid=True, IsBottomLineValid=True, IsLeftLineValid=True, IsRightLineValid=True)
+	topbottomtableborder = TableBorder2(TopLine=firstline, LeftLine=firstline, RightLine=secondline, BottomLine=secondline, IsTopLineValid=True, IsBottomLineValid=True, IsLeftLineValid=False, IsRightLineValid=False)
+	leftrighttableborder = TableBorder2(TopLine=firstline, LeftLine=firstline, RightLine=secondline, BottomLine=secondline, IsTopLineValid=False, IsBottomLineValid=False, IsLeftLineValid=True, IsRightLineValid=True)
+	borders = noneline, tableborder2, topbottomtableborder, leftrighttableborder  # 作成した枠線をまとめたタプル。
+	controller.addSelectionChangeListener(SelectionChangeListener(borders))
 	controller.addActivationEventListener(ActivationEventListener())  # ActivationEventListener
-	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler(controller))  # EnhancedMouseClickHandler。このリスナーのメソッドの引数からコントローラーを取得する方法がない。
+	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler(controller, borders))  # EnhancedMouseClickHandler。このリスナーのメソッドの引数からコントローラーを取得する方法がない。
 	controller.registerContextMenuInterceptor(ContextMenuInterceptor(ctx, smgr, doc))  # コントローラにContextMenuInterceptorを登録する。右クリックの時の対応。
 class DocumentEventListener(unohelper.Base, XDocumentEventListener):
 	def __init__(self, tdocimport, modulefolderpath):
@@ -59,14 +68,11 @@ class ActivationEventListener(unohelper.Base, XActivationEventListener):
 	def disposing(self, eventobject):
 		eventobject.Source.removeActivationEventListener(self)	
 class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
-	def __init__(self, controller):
+	def __init__(self, controller, borders):
 		self.controller = controller
-		colors = commons.COLORS
-		noneline = BorderLine2(LineStyle=BorderLineStyle.NONE)
-		firstline = BorderLine2(LineStyle=BorderLineStyle.DASHED, LineWidth=62, Color=colors["clearblue"])
-		secondline =  BorderLine2(LineStyle=BorderLineStyle.DASHED, LineWidth=62, Color=colors["magenta"])
-		self.args = noneline, firstline, secondline
+		self.args = borders
 	def mousePressed(self, enhancedmouseevent):  # セルをクリックした時に発火する。
+# 		import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)
 		target = enhancedmouseevent.Target  # ターゲットのセルを取得。
 		if target.supportsService("com.sun.star.sheet.SheetCellRange"):  # targetがチャートの時がありうる?
 			sheet = target.getSpreadsheet()
@@ -76,7 +82,7 @@ class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
 			elif sheetname.endswith("経"):  # シート名が「経」で終わる時は経過シート。
 				return True
 			elif sheetname=="一覧":
-				return ichiran.mousePressed(enhancedmouseevent, sheet, target, self.args)
+				return ichiran.mousePressed(enhancedmouseevent, self.controller, sheet, target, self.args)
 			elif sheetname=="予定":
 				return True
 			elif sheetname=="退院":
@@ -85,35 +91,32 @@ class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
 				return True
 		return True  # Falseを返すと右クリックメニューがでてこなくなる。		
 	def mouseReleased(self, enhancedmouseevent):
-		target = enhancedmouseevent.Target  # ターゲットのセルを取得。マウスボタンを離した時。複数セルを選択した後でもtargetはセルしか入らない。
-		if target.supportsService("com.sun.star.sheet.SheetCellRange"):  # targetがチャートの時がありうる?
-			sheet = target.getSpreadsheet()
-			sheetname = sheet.getName()
-			if sheetname.isdigit():  # シート名が数字のみの時カルテシート。
-				return True
-			elif sheetname.endswith("経"):  # シート名が「経」で終わる時は経過シート。
-				return True
-			elif sheetname=="一覧":
-				pass
-# 				doc = self.controller.getModel()  # ドキュメントを取得。モデルを渡すと選択セルの変更が反映されていない可能性がある。
-# 				return ichiran.mouseReleased(enhancedmouseevent, doc, sheet, target, self.args)
-			elif sheetname=="予定":
-				return True
-			elif sheetname=="退院":
-				return True
-			elif sheetname=="履歴":
-				return True
+		pass
+# 		target = enhancedmouseevent.Target  # ターゲットのセルを取得。マウスボタンを離した時。複数セルを選択した後でもtargetはセルしか入らない。
+# 		if target.supportsService("com.sun.star.sheet.SheetCellRange"):  # targetがチャートの時がありうる?
+# 			sheet = target.getSpreadsheet()
+# 			sheetname = sheet.getName()
+# 			if sheetname.isdigit():  # シート名が数字のみの時カルテシート。
+# 				return True
+# 			elif sheetname.endswith("経"):  # シート名が「経」で終わる時は経過シート。
+# 				return True
+# 			elif sheetname=="一覧":
+# 				pass
+# # 				doc = self.controller.getModel()  # ドキュメントを取得。モデルを渡すと選択セルの変更が反映されていない可能性がある。
+# # 				return ichiran.mouseReleased(enhancedmouseevent, doc, sheet, target, self.args)
+# 			elif sheetname=="予定":
+# 				return True
+# 			elif sheetname=="退院":
+# 				return True
+# 			elif sheetname=="履歴":
+# 				return True
 		return True  # シングルクリックでFalseを返すとセル選択範囲の決定の状態になってどうしようもなくなる。
 	def disposing(self, eventobject):  # eventobject.SourceはNone。
 		self.controller.removeEnhancedMouseClickHandler(self)	
 class SelectionChangeListener(unohelper.Base, XSelectionChangeListener):
-	def __init__(self):
-		colors = commons.COLORS
-		noneline = BorderLine2(LineStyle=BorderLineStyle.NONE)
-		firstline = BorderLine2(LineStyle=BorderLineStyle.DASHED, LineWidth=62, Color=colors["clearblue"])
-		secondline =  BorderLine2(LineStyle=BorderLineStyle.DASHED, LineWidth=62, Color=colors["magenta"])
-		self.args = noneline, firstline, secondline	
-	def selectionChanged(self, eventobject):  # マウスから呼び出した時の反応が遅い。
+	def __init__(self, borders):
+		self.args = borders
+	def selectionChanged(self, eventobject):  # マウスから呼び出した時の反応が遅い。このメソッドでエラーがでるとショートカットキーでの操作が必要。
 # 		import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)
 		controller = eventobject.Source
 		sheet = controller.getActiveSheet()
