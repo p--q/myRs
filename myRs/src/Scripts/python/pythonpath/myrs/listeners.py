@@ -71,7 +71,7 @@ class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
 	def __init__(self, controller, borders):
 		self.controller = controller
 		self.args = borders
-	def mousePressed(self, enhancedmouseevent):  # セルをクリックした時に発火する。
+	def mousePressed(self, enhancedmouseevent):  # セルをクリックした時に発火する。固定行列の最初のクリックは同じ相対位置の固定していないセルが返ってくる。
 # 		import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)
 		target = enhancedmouseevent.Target  # ターゲットのセルを取得。
 		if target.supportsService("com.sun.star.sheet.SheetCellRange"):  # targetがチャートの時がありうる?
@@ -92,24 +92,6 @@ class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
 		return True  # Falseを返すと右クリックメニューがでてこなくなる。		
 	def mouseReleased(self, enhancedmouseevent):
 		pass
-# 		target = enhancedmouseevent.Target  # ターゲットのセルを取得。マウスボタンを離した時。複数セルを選択した後でもtargetはセルしか入らない。
-# 		if target.supportsService("com.sun.star.sheet.SheetCellRange"):  # targetがチャートの時がありうる?
-# 			sheet = target.getSpreadsheet()
-# 			sheetname = sheet.getName()
-# 			if sheetname.isdigit():  # シート名が数字のみの時カルテシート。
-# 				return True
-# 			elif sheetname.endswith("経"):  # シート名が「経」で終わる時は経過シート。
-# 				return True
-# 			elif sheetname=="一覧":
-# 				pass
-# # 				doc = self.controller.getModel()  # ドキュメントを取得。モデルを渡すと選択セルの変更が反映されていない可能性がある。
-# # 				return ichiran.mouseReleased(enhancedmouseevent, doc, sheet, target, self.args)
-# 			elif sheetname=="予定":
-# 				return True
-# 			elif sheetname=="退院":
-# 				return True
-# 			elif sheetname=="履歴":
-# 				return True
 		return True  # シングルクリックでFalseを返すとセル選択範囲の決定の状態になってどうしようもなくなる。
 	def disposing(self, eventobject):  # eventobject.SourceはNone。
 		self.controller.removeEnhancedMouseClickHandler(self)	

@@ -7,4 +7,5 @@ COLORS = {"lime": 0x00FF00,\
 		"greenishblue": 0x00CCFF,\
 		"silver": 0xC0C0C0,\
 		"red": 0xFF0000,\
-		"clearblue": 0x9999FF}  # 色の16進数。	
+		"clearblue": 0x9999FF,\
+		"lightgreen": 0xccffff}  # 色の16進数。	

@@ -6,19 +6,24 @@ from com.sun.star.ui import ActionTriggerSeparatorType  # 定数
 from com.sun.star.awt import MouseButton  # 定数
 
 
-def determineArea(controller, cellrange):
-	menu = 0  # メニュー行インデックス。
-	
-	cell = cellrange[0, 0]  # セル範囲の左上端のセルで判断する。
-	celladdress = cell.getCellAddress()
-	r = celladdress.Row
-	if r==menu:
-		return "M"
-	elif r<controller.getSplitRow():  # メニュー行以外の固定行の時。
-		return "C"
-
-
-
+# def determineArea(controller, cellrange):
+# 	"""
+# 	M
+# 	-----------
+# 	C
+# 	===========
+# 	B  
+# 	"""
+# 	menu = 0  # メニュー行インデックス。
+# 	cell = cellrange[0, 0]  # セル範囲の左上端のセルで判断する。
+# 	celladdress = cell.getCellAddress()
+# 	r = celladdress.Row
+# 	if r==menu:  # メニュー行の時。
+# 		return "M"
+# 	elif r>=controller.getSplitRow():  # 固定行でない時。
+# 		return "B"
+# 	else:
+# 		return "C"
 def selectionChanged(controller, sheet, args):  # 矢印キーでセル移動した時も発火する。
 	borders = args	
 	selection = controller.getSelection()
@@ -38,26 +43,31 @@ def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウ
 			if enhancedmouseevent.ClickCount==1:  # シングルクリックの時。
 				drowBorders(controller, sheet, target, borders)
 			elif enhancedmouseevent.ClickCount==2:  # ダブルクリックの時
-# 			celladdress = target.getCellAddress()  # ターゲットのセルアドレスを取得。
+				celladdress = target.getCellAddress()  # ターゲットのセルアドレスを取得。
+# 				if celladdress
+				
 # 				if controller.hasFrozenPanes():  # 表示→セルの固定、がされている時。
 # 					splitrow = controller.getSplitRow()
 # 					splitcolumn = controller.getSplitColumn()
 				return False  # セル編集モードにしない。
 	return True
-def drowBorders(controller, sheet, target, borders):  # ターゲットを交点とする行列全体の外枠線を描く。
-	noneline, tableborder2, topbottomtableborder, leftrighttableborder = borders	
-	cellcursor = sheet.createCursor()  # シートをセル範囲とするセルカーサーを取得。
-	cellcursor.setPropertyValue("TopBorder2", noneline)  # 1辺をNONEにするだけですべての枠線が消える。
-	cellcursor = sheet.createCursorByRange(target)  # targetをセル範囲とするセルカーサーを取得。
-	cellcursor.expandToEntireColumns()  # 列全体を取得。
-	if cellcursor[0, 0].getIsMerged():  # セル範囲の先頭セルが結合セルの時。
-		cellcursor.setPropertyValue("TableBorder2", leftrighttableborder)  # 列の左右に枠線を引く。
-	else:
-		cellcursor[controller.getSplitRow():, :].setPropertyValue("TableBorder2", leftrighttableborder)  # 固定行を除く列の左右に枠線を引く。	
-	cellcursor = sheet.createCursorByRange(target)  # targetをセル範囲とするセルカーサーを再取得。
-	cellcursor.expandToEntireRows()  # 行全体を取得。
-	cellcursor.setPropertyValue("TableBorder2", topbottomtableborder)  # 行の上下に枠線を引く。
-	target.setPropertyValue("TableBorder2", tableborder2)  # 選択範囲の消えた枠線を引き直す。	
+def drowBorders(controller, sheet, cellrange, borders):  # ターゲットを交点とする行列全体の外枠線を描く。
+	splitrow = controller.getSplitRow()  # 固定行最下行インデックス。
+	cell = cellrange[0, 0]  # セル範囲の左上端のセルで判断する。
+	celladdress = cell.getCellAddress()
+	if celladdress.Row>splitrow:  # 固定行でない時。
+		if cell.getPropertyValue("CellBackColor") in (-1, commons.COLORS["lightgreen"]):
+			noneline, tableborder2, topbottomtableborder, leftrighttableborder = borders	
+			cellcursor = sheet.createCursor()  # シートをセル範囲とするセルカーサーを取得。
+			cellcursor.setPropertyValue("TopBorder2", noneline)  # 1辺をNONEにするだけですべての枠線が消える。
+			cellcursor = sheet.createCursorByRange(cellrange)  # targetをセル範囲とするセルカーサーを取得。
+			cellcursor.expandToEntireColumns()  # 列全体を取得。
+			if cellcursor[0, 0].getIsMerged() and cellcursor[0, 0].getString()!="在院日数":  # セル範囲の先頭セルが結合セル かつ 「在院日数」でない時。
+				cellcursor.setPropertyValue("TableBorder2", leftrighttableborder)  # 列の左右に枠線を引く。
+			cellcursor = sheet.createCursorByRange(cellrange)  # targetをセル範囲とするセルカーサーを再取得。
+			cellcursor.expandToEntireRows()  # 行全体を取得。
+			cellcursor.setPropertyValue("TableBorder2", topbottomtableborder)  # 行の上下に枠線を引く。
+			cellrange.setPropertyValue("TableBorder2", tableborder2)  # 選択範囲の消えた枠線を引き直す。	
 def notifycontextmenuexecute(addMenuentry, baseurl, contextmenu, controller, contextmenuname):  # 右クリックメニュー。			
 	if contextmenuname=="cell":  # セルのとき
 		selection = controller.getSelection()  # 現在選択しているセル範囲を取得。
