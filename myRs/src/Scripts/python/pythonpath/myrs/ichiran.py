@@ -4,26 +4,35 @@
 from myrs import commons
 from com.sun.star.ui import ActionTriggerSeparatorType  # 定数
 from com.sun.star.awt import MouseButton  # 定数
+from com.sun.star.sheet import CellFlags  # 定数
 
-
-# def determineArea(controller, cellrange):
-# 	"""
-# 	M
-# 	-----------
-# 	C
-# 	===========
-# 	B  
-# 	"""
-# 	menu = 0  # メニュー行インデックス。
-# 	cell = cellrange[0, 0]  # セル範囲の左上端のセルで判断する。
-# 	celladdress = cell.getCellAddress()
-# 	r = celladdress.Row
-# 	if r==menu:  # メニュー行の時。
-# 		return "M"
-# 	elif r>=controller.getSplitRow():  # 固定行でない時。
-# 		return "B"
-# 	else:
-# 		return "C"
+def getSectionName(controller, sheet, cell):  # 区画名を取得。
+	"""
+	M  |
+	---
+	C
+	===========
+	B  |D|E
+	   | |
+	-----------
+	A
+	"""
+	rangeaddress = cell.getRangeAddress()  # セル範囲アドレスを取得。セルアドレスは不可。
+	nonfreezedrow = 2  # 動く行の最上行のインデックス。
+	contentcells = sheet[:, 2].queryContentCells(CellFlags.VALUE+CellFlags.STRING+CellFlags.FORMULA)  # 列インデックス2の数値か文字列か式の入っているセルに限定して抽出。空列は不可。
+	lastrow = contentcells.getRangeAddresses()[-1].EndRow  # 最終行インデックスを取得。
+	if len(sheet[0, :6].queryIntersection(rangeaddress)):  # メニューセルの時。
+		return "M"
+	elif len(sheet[nonfreezedrow:lastrow+1, :8].queryIntersection(rangeaddress)):  # Dの左。
+		return "B"	
+	elif len(sheet[nonfreezedrow:lastrow+1, 8:22].queryIntersection(rangeaddress)):  # チェック列の時。
+		return "D"		
+	elif len(sheet[nonfreezedrow:lastrow+1, 22:].queryIntersection(rangeaddress)):  # Dの右。
+		return "E"		
+	elif len(sheet[lastrow:, :].queryIntersection(rangeaddress)):  # まだデータのない行の時。
+		return "A"	
+	else:  # メニューセル以外の固定行の時。
+		return "C"
 def selectionChanged(controller, sheet, args):  # 矢印キーでセル移動した時も発火する。
 	borders = args	
 	selection = controller.getSelection()
@@ -43,26 +52,30 @@ def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウ
 			if enhancedmouseevent.ClickCount==1:  # シングルクリックの時。
 				drowBorders(controller, sheet, target, borders)
 			elif enhancedmouseevent.ClickCount==2:  # ダブルクリックの時
-				celladdress = target.getCellAddress()  # ターゲットのセルアドレスを取得。
-# 				if celladdress
-				
-# 				if controller.hasFrozenPanes():  # 表示→セルの固定、がされている時。
-# 					splitrow = controller.getSplitRow()
-# 					splitcolumn = controller.getSplitColumn()
+				section = getSectionName(controller, sheet, target)
+				if section in ("M", "B", "D"):
+					pass
+
+
+
+
+
+
+
+
 				return False  # セル編集モードにしない。
 	return True
 def drowBorders(controller, sheet, cellrange, borders):  # ターゲットを交点とする行列全体の外枠線を描く。
-	splitrow = controller.getSplitRow()  # 固定行最下行インデックス。
 	cell = cellrange[0, 0]  # セル範囲の左上端のセルで判断する。
-	celladdress = cell.getCellAddress()
-	if celladdress.Row>splitrow:  # 固定行でない時。
+	section = getSectionName(controller, sheet, cell)
+	if section in ("A", "B", "D", "E"):
+		noneline, tableborder2, topbottomtableborder, leftrighttableborder = borders	
+		cellcursor = sheet.createCursor()  # シートをセル範囲とするセルカーサーを取得。
+		cellcursor.setPropertyValue("TopBorder2", noneline)  # 1辺をNONEにするだけですべての枠線が消える。
 		if cell.getPropertyValue("CellBackColor") in (-1, commons.COLORS["lightgreen"]):
-			noneline, tableborder2, topbottomtableborder, leftrighttableborder = borders	
-			cellcursor = sheet.createCursor()  # シートをセル範囲とするセルカーサーを取得。
-			cellcursor.setPropertyValue("TopBorder2", noneline)  # 1辺をNONEにするだけですべての枠線が消える。
 			cellcursor = sheet.createCursorByRange(cellrange)  # targetをセル範囲とするセルカーサーを取得。
 			cellcursor.expandToEntireColumns()  # 列全体を取得。
-			if cellcursor[0, 0].getIsMerged() and cellcursor[0, 0].getString()!="在院日数":  # セル範囲の先頭セルが結合セル かつ 「在院日数」でない時。
+			if section=="D":
 				cellcursor.setPropertyValue("TableBorder2", leftrighttableborder)  # 列の左右に枠線を引く。
 			cellcursor = sheet.createCursorByRange(cellrange)  # targetをセル範囲とするセルカーサーを再取得。
 			cellcursor.expandToEntireRows()  # 行全体を取得。
