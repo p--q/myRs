@@ -20,16 +20,16 @@ def getSectionName(controller, sheet, cell):  # 区画名を取得。
 	rangeaddress = cell.getRangeAddress()  # セル範囲アドレスを取得。セルアドレスは不可。
 	nonfreezedrow = 2  # 動く行の最上行のインデックス。
 	contentcells = sheet[:, 2].queryContentCells(CellFlags.VALUE+CellFlags.STRING+CellFlags.FORMULA)  # 列インデックス2の数値か文字列か式の入っているセルに限定して抽出。空列は不可。
-	lastrow = contentcells.getRangeAddresses()[-1].EndRow  # 最終行インデックスを取得。
+	emptyrow = contentcells.getRangeAddresses()[-1].EndRow + 1  # 最終行インデックス+1を取得。
 	if len(sheet[0, :6].queryIntersection(rangeaddress)):  # メニューセルの時。
 		return "M"
-	elif len(sheet[nonfreezedrow:lastrow+1, :8].queryIntersection(rangeaddress)):  # Dの左。
+	elif len(sheet[nonfreezedrow:emptyrow, :8].queryIntersection(rangeaddress)):  # Dの左。
 		return "B"	
-	elif len(sheet[nonfreezedrow:lastrow+1, 8:22].queryIntersection(rangeaddress)):  # チェック列の時。
+	elif len(sheet[nonfreezedrow:emptyrow, 8:22].queryIntersection(rangeaddress)):  # チェック列の時。
 		return "D"		
-	elif len(sheet[nonfreezedrow:lastrow+1, 22:].queryIntersection(rangeaddress)):  # Dの右。
+	elif len(sheet[nonfreezedrow:emptyrow, 22:].queryIntersection(rangeaddress)):  # Dの右。
 		return "E"		
-	elif len(sheet[lastrow:, :].queryIntersection(rangeaddress)):  # まだデータのない行の時。
+	elif len(sheet[emptyrow:, :].queryIntersection(rangeaddress)):  # まだデータのない行の時。
 		return "A"	
 	else:  # メニューセル以外の固定行の時。
 		return "C"
@@ -63,7 +63,7 @@ def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウ
 
 
 
-				return False  # セル編集モードにしない。
+					return False  # セル編集モードにしない。
 	return True
 def drowBorders(controller, sheet, cellrange, borders):  # ターゲットを交点とする行列全体の外枠線を描く。
 	cell = cellrange[0, 0]  # セル範囲の左上端のセルで判断する。
