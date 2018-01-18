@@ -5,6 +5,10 @@ from myrs import commons
 from com.sun.star.ui import ActionTriggerSeparatorType  # 定数
 from com.sun.star.awt import MouseButton  # 定数
 from com.sun.star.sheet import CellFlags  # 定数
+from com.sun.star.awt.MessageBoxType import QUERYBOX   # enum
+from com.sun.star.awt import MessageBoxButtons  # 定数
+from com.sun.star.awt import MessageBoxResults  # 定数
+
 
 def getSectionName(controller, sheet, cell):  # 区画名を取得。
 	"""
@@ -21,18 +25,18 @@ def getSectionName(controller, sheet, cell):  # 区画名を取得。
 	nonfreezedrow = 2  # 動く行の最上行のインデックス。
 	contentcells = sheet[:, 2].queryContentCells(CellFlags.VALUE+CellFlags.STRING+CellFlags.FORMULA)  # 列インデックス2の数値か文字列か式の入っているセルに限定して抽出。空列は不可。
 	emptyrow = contentcells.getRangeAddresses()[-1].EndRow + 1  # 最終行インデックス+1を取得。
+	sectionname = "C"  # メニューセル以外の固定行の時。
 	if len(sheet[0, :6].queryIntersection(rangeaddress)):  # メニューセルの時。
-		return "M"
+		sectionname = "M"
 	elif len(sheet[nonfreezedrow:emptyrow, :8].queryIntersection(rangeaddress)):  # Dの左。
-		return "B"	
+		sectionname = "B"	
 	elif len(sheet[nonfreezedrow:emptyrow, 8:22].queryIntersection(rangeaddress)):  # チェック列の時。
-		return "D"		
+		sectionname = "D"		
 	elif len(sheet[nonfreezedrow:emptyrow, 22:].queryIntersection(rangeaddress)):  # Dの右。
-		return "E"		
+		sectionname = "E"		
 	elif len(sheet[emptyrow:, :].queryIntersection(rangeaddress)):  # まだデータのない行の時。
-		return "A"	
-	else:  # メニューセル以外の固定行の時。
-		return "C"
+		sectionname = "A"	
+	return sectionname, nonfreezedrow, emptyrow  # 区画名、2回目の呼び出しでは動く行の最上行のインデックス、最終行インデックス+1、のタプルを返す。
 def selectionChanged(controller, sheet, args):  # 矢印キーでセル移動した時も発火する。
 	borders = args	
 	selection = controller.getSelection()
@@ -44,7 +48,7 @@ def selectionChanged(controller, sheet, args):  # 矢印キーでセル移動し
 	if selection.supportsService("com.sun.star.sheet.SheetCellRange"):  # 選択範囲がセル範囲の時。
 		drowBorders(controller, sheet, selection, borders)	
 def activeSpreadsheetChanged(sheet):  # シートがアクティブになった時。
-	sheet["C1:F1"].setDataArray((("済をﾘｾｯﾄ", "", "血画を反映", ""),))  # よく誤入力されるセルを修正する。つまりボタンになっているセルの修正。
+	sheet["C1:F1"].setDataArray((("済をﾘｾｯﾄ", "血画を反映", "予をﾘｾｯﾄ", "入力支援"),))  # よく誤入力されるセルを修正する。つまりボタンになっているセルの修正。
 def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウスボタンを押した時。
 	borders = args
 	if enhancedmouseevent.Buttons==MouseButton.LEFT:  # 左ボタンのとき
@@ -52,30 +56,95 @@ def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウ
 			if enhancedmouseevent.ClickCount==1:  # シングルクリックの時。
 				drowBorders(controller, sheet, target, borders)
 			elif enhancedmouseevent.ClickCount==2:  # ダブルクリックの時
-				section = getSectionName(controller, sheet, target)
-				if section in ("M", "B", "D"):
-					pass
-
-
-
-
-
-
-
-
+				section, nonfreezedrow, emptyrow = getSectionName(controller, sheet, target)
+				if section=="M":
+					txt = target.getString()
+					if txt=="血画を反映":
+						pass
+					
+					elif txt=="済をﾘｾｯﾄ":
+						containerwindow = controller.getFrame().getContainerWindow()  # コンテナウィンドウを取得。
+						toolkit = containerwindow.getToolkit() #ウィンドウピアオブジェクトからツールキットを取得。
+						msgbox = toolkit.createMessageBox(containerwindow, QUERYBOX, MessageBoxButtons.BUTTONS_OK_CANCEL+MessageBoxButtons.DEFAULT_BUTTON_OK, "済列の変更", "済をリセットしますか？")
+						if msgbox.execute()==MessageBoxResults.OK:
+							sheet[nonfreezedrow:emptyrow, :].setPropertyValue("CharColor", commons.COLORS["black"])  # 文字色をリセット。
+							sheet[nonfreezedrow:emptyrow, 0].setDataArray([("未",)]*(emptyrow-nonfreezedrow))  # 済列をリセット。
+							searchdescriptor = sheet.createSearchDescriptor()
+							searchdescriptor.setSearchString("済")
+							cellranges = sheet[nonfreezedrow:emptyrow, 8:22].findAll(searchdescriptor)  # チェック列の「済」が入っているセル範囲コレクションを取得。
+							cellranges.setPropertyValue("CharColor", commons.COLORS["silver"])
+					elif txt=="予をﾘｾｯﾄ":
+						sheet[nonfreezedrow:emptyrow, 1].clearContents(CellFlags.STRING)  # 予列をリセット。
+					elif txt=="入力支援":
+						pass
+					
 					return False  # セル編集モードにしない。
+				elif target.getPropertyValue("CellBackColor") in (-1, commons.COLORS["lightgreen"]):  # 背景色がないか薄緑色の時。
+					c = target.getCellAddress().Column  # 列インデックスを取得。
+					if section=="B":
+						# 経過列が空白でない時のみ。
+						
+						
+						header = sheet[1, c].getString()  # 行インデックス1のセルの文字列を取得。
+						if header=="済":
+							txt = target.getString()
+							dic = {"未": ("待", "greenishblue"), "待": ("済", "silver"), "済": ("未", "black")}
+							if txt in dic.keys():
+								newtxt, newcolor = dic[txt]
+								target.setString(newtxt)
+								sheet[target.getCellAddress().Row, :].setPropertyValue("CharColor", commons.COLORS[newcolor])
+						elif header=="予":
+							if target.getString():
+								target.clearContents(CellFlags.STRING)  # 予をクリア。
+							else:  # セルの文字列が空の時。
+								target.setString("予")
+						elif header=="ID":
+							
+							# クリップボードにコピーする。
+							
+							pass
+						elif header=="漢字名":
+							pass						
+						elif header=="ｶﾅ名":
+							pass						
+						elif header=="経過":
+							pass				
+					elif section=="D":
+						header = sheet[0, c].getString()  # 行インデックス0のセルの文字列を取得。
+						if header=="4F":
+							pass
+						elif header=="血液":
+							pass						
+# 						elif header=="ID":
+# 							pass
+# 						elif header=="漢字名":
+# 							pass						
+# 						elif header=="ｶﾅ名":
+# 							pass						
+# 						elif header=="経過":
+# 							pass	
+					return False  # セル編集モードにしない。
+
+
+
+
+
+
+
+
+				
 	return True
 def drowBorders(controller, sheet, cellrange, borders):  # ターゲットを交点とする行列全体の外枠線を描く。
 	cell = cellrange[0, 0]  # セル範囲の左上端のセルで判断する。
-	section = getSectionName(controller, sheet, cell)
-	if section in ("A", "B", "D", "E"):
+	sectionname = getSectionName(controller, sheet, cell)[0]
+	if sectionname in ("A", "B", "D", "E"):
 		noneline, tableborder2, topbottomtableborder, leftrighttableborder = borders	
 		cellcursor = sheet.createCursor()  # シートをセル範囲とするセルカーサーを取得。
 		cellcursor.setPropertyValue("TopBorder2", noneline)  # 1辺をNONEにするだけですべての枠線が消える。
-		if cell.getPropertyValue("CellBackColor") in (-1, commons.COLORS["lightgreen"]):
+		if cell.getPropertyValue("CellBackColor") in (-1, commons.COLORS["lightgreen"]):  # 背景色がないか薄緑色の時。
 			cellcursor = sheet.createCursorByRange(cellrange)  # targetをセル範囲とするセルカーサーを取得。
 			cellcursor.expandToEntireColumns()  # 列全体を取得。
-			if section=="D":
+			if sectionname=="D":
 				cellcursor.setPropertyValue("TableBorder2", leftrighttableborder)  # 列の左右に枠線を引く。
 			cellcursor = sheet.createCursorByRange(cellrange)  # targetをセル範囲とするセルカーサーを再取得。
 			cellcursor.expandToEntireRows()  # 行全体を取得。

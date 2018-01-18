@@ -14,7 +14,7 @@ from com.sun.star.table import BorderLine2  # Struct
 from com.sun.star.table import BorderLineStyle  # 定数
 from com.sun.star.table import TableBorder2  # Struct
 from myrs import commons, ichiran, karute, keika, rireki, taiin, yotei  # 相対インポートは不可。
-
+global XSCRIPTCONTEXT
 def myRs(tdocimport, modulefolderpath, xscriptcontext):  # 引数は文書のイベント駆動用。この関数ではXSCRIPTCONTEXTは使えない。  
 	
 	doc = xscriptcontext.getDocument()  # ドキュメントのモデルを取得。 
@@ -71,7 +71,7 @@ class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
 	def __init__(self, controller, borders):
 		self.controller = controller
 		self.args = borders
-	def mousePressed(self, enhancedmouseevent):  # セルをクリックした時に発火する。固定行列の最初のクリックは同じ相対位置の固定していないセルが返ってくる。
+	def mousePressed(self, enhancedmouseevent):  # セルをクリックした時に発火する。固定行列の最初のクリックは同じ相対位置の固定していないセルが返ってくる(表示されている自由行の先頭行に背景色がる時のみ）。
 # 		import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)
 		target = enhancedmouseevent.Target  # ターゲットのセルを取得。
 		if target.supportsService("com.sun.star.sheet.SheetCellRange"):  # targetがチャートの時がありうる?
