@@ -16,16 +16,14 @@ from com.sun.star.table import TableBorder2  # Struct
 from myrs import commons, ichiran, karute, keika, rireki, taiin, yotei  # 相対インポートは不可。
 global XSCRIPTCONTEXT
 def myRs(tdocimport, modulefolderpath, xscriptcontext):  # 引数は文書のイベント駆動用。この関数ではXSCRIPTCONTEXTは使えない。  
-	
 	doc = xscriptcontext.getDocument()  # ドキュメントのモデルを取得。 
-	
-	
-	
 	ctx = xscriptcontext.getComponentContext()  # コンポーネントコンテクストの取得。
 	smgr = ctx.getServiceManager()  # サービスマネージャーの取得。
 	doc.addChangesListener(ChangesListener())  # ChangesListener	
 	doc.addDocumentEventListener(DocumentEventListener(tdocimport, modulefolderpath))  # DocumentEventListener	
 	controller = doc.getCurrentController()  # コントローラの取得。
+	systemclipboard = smgr.createInstanceWithContext("com.sun.star.datatransfer.clipboard.SystemClipboard", ctx)  # SystemClipboard
+	transliteration = smgr.createInstanceWithContext("com.sun.star.i18n.Transliteration", ctx)  # Transliteration
 	# 枠線の作成。
 	noneline = BorderLine2(LineStyle=BorderLineStyle.NONE)
 	firstline = BorderLine2(LineStyle=BorderLineStyle.DASHED, LineWidth=62, Color=commons.COLORS["clearblue"])
@@ -36,7 +34,7 @@ def myRs(tdocimport, modulefolderpath, xscriptcontext):  # 引数は文書のイ
 	borders = noneline, tableborder2, topbottomtableborder, leftrighttableborder  # 作成した枠線をまとめたタプル。
 	controller.addSelectionChangeListener(SelectionChangeListener(borders))
 	controller.addActivationEventListener(ActivationEventListener())  # ActivationEventListener
-	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler(controller, borders))  # EnhancedMouseClickHandler。このリスナーのメソッドの引数からコントローラーを取得する方法がない。
+	controller.addEnhancedMouseClickHandler(EnhancedMouseClickHandler(controller, borders, systemclipboard, transliteration))  # EnhancedMouseClickHandler。このリスナーのメソッドの引数からコントローラーを取得する方法がない。
 	controller.registerContextMenuInterceptor(ContextMenuInterceptor(ctx, smgr, doc))  # コントローラにContextMenuInterceptorを登録する。右クリックの時の対応。
 class DocumentEventListener(unohelper.Base, XDocumentEventListener):
 	def __init__(self, tdocimport, modulefolderpath):
@@ -68,9 +66,9 @@ class ActivationEventListener(unohelper.Base, XActivationEventListener):
 	def disposing(self, eventobject):
 		eventobject.Source.removeActivationEventListener(self)	
 class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):
-	def __init__(self, controller, borders):
+	def __init__(self, controller, borders, systemclipboard, transliteration):
 		self.controller = controller
-		self.args = borders
+		self.args = borders, systemclipboard, transliteration
 	def mousePressed(self, enhancedmouseevent):  # セルをクリックした時に発火する。固定行列の最初のクリックは同じ相対位置の固定していないセルが返ってくる(表示されている自由行の先頭行に背景色がる時のみ）。
 # 		import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)
 		target = enhancedmouseevent.Target  # ターゲットのセルを取得。
