@@ -128,7 +128,7 @@ def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウ
 						if txt:  # すでに入力されている時。
 							return True  # セル編集モードにする。
 						else:
-							dialog, addControl = dialogCreator(ctx, smgr, {"PositionX": 102, "PositionY": 41, "Width": 380, "Height": 380, "Title": "LibreOffice", "Name": "MyTestDialog", "Step": 0, "Moveable": True})  # "TabIndex": 0
+# 							dialog, addControl = dialogCreator(ctx, smgr, {"PositionX": 102, "PositionY": 41, "Width": 380, "Height": 380, "Title": "LibreOffice", "Name": "MyTestDialog", "Step": 0, "Moveable": True})  # "TabIndex": 0
 
 							
 							
