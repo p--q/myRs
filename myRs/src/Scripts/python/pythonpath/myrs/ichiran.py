@@ -13,7 +13,7 @@ from com.sun.star.lang import Locale  # Struct
 
 class Ichiran():  # シート固有の定数設定。
 	pass
-ichiran = Ichiran()
+ichiran = Ichiran()  # クラスをインスタンス化。
 ichiran.sumi_retu = 0  # 済列インデックス。
 ichiran.keika_retu = 6  # 経過列インデックス。
 ichiran.memo_retu_end = 22  # チェック列の右の最初の列インデックス。
