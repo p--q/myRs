@@ -6,14 +6,14 @@ from com.sun.star.datatransfer import DataFlavor  # Struct
 from com.sun.star.datatransfer import UnsupportedFlavorException
 COLORS = {\
 # 		"lime": 0x00FF00,\
-		"magenta": 0xFF00FF,\
+		"magenta3": 0xFF00FF,\
 		"black": 0x000000,\
-# 		"blue": 0x0000FF,\
-		"greenishblue": 0x00CCFF,\
+# 		"blue3": 0x0000FF,\
+		"skyblue": 0x00CCFF,\
 		"silver": 0xC0C0C0,\
-# 		"red": 0xFF0000,\
-		"clearblue": 0x9999FF,\
-		"lightgreen": 0xccffff}  # 色の16進数。	
+# 		"red3": 0xFF0000,\
+		"violet": 0x9999FF,\
+		"cyan10": 0xCCFFFF}  # 色の16進数。	
 class TextTransferable(unohelper.Base, XTransferable):
 	def __init__(self, txt):  # クリップボードに渡す文字列を受け取る。
 		self.txt = txt

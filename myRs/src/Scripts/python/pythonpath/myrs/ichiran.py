@@ -51,8 +51,8 @@ def selectionChanged(controller, sheet, args):  # 矢印キーでセル移動し
 	selection = controller.getSelection()
 	if selection.supportsService("com.sun.star.sheet.SheetCell"):  # 選択範囲がセルの時。矢印キーでセルを移動した時。マウスクリックハンドラから呼ばれると何回も発火するのでその対応。
 		currenttableborder2 = selection.getPropertyValue("TableBorder2")  # 選択セルの枠線を取得。
-		if all((currenttableborder2.TopLine.Color==currenttableborder2.LeftLine.Color==commons.COLORS["clearblue"],\
-				currenttableborder2.RightLine.Color==currenttableborder2.BottomLine.Color==commons.COLORS["magenta"])):  # 枠線の色を確認。
+		if all((currenttableborder2.TopLine.Color==currenttableborder2.LeftLine.Color==commons.COLORS["violet"],\
+				currenttableborder2.RightLine.Color==currenttableborder2.BottomLine.Color==commons.COLORS["magenta3"])):  # 枠線の色を確認。
 			return  # すでに枠線が書いてあったら何もしない。
 	if selection.supportsService("com.sun.star.sheet.SheetCellRange"):  # 選択範囲がセル範囲の時。
 		drowBorders(controller, sheet, selection, borders)	
@@ -92,14 +92,14 @@ def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウ
 						pass  # 入力支援odsを開く。
 					
 					return False  # セル編集モードにしない。
-				elif not target.getPropertyValue("CellBackColor") in (-1, commons.COLORS["lightgreen"]):  # 背景色がないか薄緑色でない時。何もしない。
+				elif not target.getPropertyValue("CellBackColor") in (-1, commons.COLORS["cyan10"]):  # 背景色がないか薄緑色でない時。何もしない。
 					return False  # セル編集モードにしない。
 				elif section=="B":
 					header = sheet[ichiran.nonfreezedrow-1, c].getString()  # 固定行の最下端のセルの文字列を取得。
 					if header=="済":
 						if txt=="未":
 							target.setString("待")
-							sheet[r, :].setPropertyValue("CharColor", commons.COLORS["greenishblue"])
+							sheet[r, :].setPropertyValue("CharColor", commons.COLORS["skyblue"])
 						elif txt=="待":
 							target.setString("済")
 							sheet[r, :].setPropertyValue("CharColor", commons.COLORS["silver"])
@@ -169,7 +169,7 @@ def drowBorders(controller, sheet, cellrange, borders):  # ターゲットを交
 	if sectionname in ("A", "B", "D", "E"):
 		noneline, tableborder2, topbottomtableborder, leftrighttableborder = borders	
 		sheet[:, :].setPropertyValue("TopBorder2", noneline)  # 1辺をNONEにするだけですべての枠線が消える。
-		if cell.getPropertyValue("CellBackColor") in (-1, commons.COLORS["lightgreen"]):  # 背景色がないか薄緑色の時。
+		if cell.getPropertyValue("CellBackColor") in (-1, commons.COLORS["cyan10"]):  # 背景色がないか薄緑色の時。
 			rangeaddress = cellrange.getRangeAddress()  # セル範囲アドレスを取得。
 			if sectionname=="D":
 				sheet[:, rangeaddress.StartColumn:rangeaddress.EndColumn+1].setPropertyValue("TableBorder2", leftrighttableborder)  # 列の左右に枠線を引く。			
@@ -203,9 +203,9 @@ def notifycontextmenuexecute(addMenuentry, baseurl, contextmenu, controller, con
 def contextMenuEntries(target, entrynum):  # コンテクストメニュー番号の処理を振り分ける。
 	colors = commons.COLORS
 	if entrynum==1:
-		target.setPropertyValue("CellBackColor", colors["blue"])  # 背景を青色にする。
+		target.setPropertyValue("CellBackColor", colors["blue3"])  # 背景を青色にする。
 	elif entrynum==2:
-		target.setPropertyValue("CellBackColor", colors["red"]) 
+		target.setPropertyValue("CellBackColor", colors["red3"]) 
 def dialogCreator(ctx, smgr, dialogprops):  # ダイアログと、それにコントロールを追加する関数を返す。まずダイアログモデルのプロパティを取得。
 	dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)  # ダイアログの生成。
 	if "PosSize" in dialogprops:  # コントロールモデルのプロパティの辞書にPosSizeキーがあるときはピクセル単位でコントロールに設定をする。
