@@ -142,10 +142,11 @@ def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウ
 								newsheet = sheets[ids[0]]  # カルテシートを取得。  
 								controller.setActiveSheet(newsheet)  # カルテシートをアクティブにする。
 							else:
-								msg = "ID、漢字名、カナ名、入院日、すべてを入力してください。"
-								containerwindow = controller.getContainerWindow()
-								msgbox = containerwindow.getToolkit().createMessageBox(containerwindow, ERRORBOX, MessageBoxButtons.BUTTONS_OK, "myRs", msg)
-								msgbox.exesute
+								msg = "ID、漢字名、カナ名、入院日\nすべてを入力してください。"
+								componentwindow = controller.ComponentWindow
+								msgbox = componentwindow.getToolkit().createMessageBox(componentwindow, ERRORBOX, MessageBoxButtons.BUTTONS_OK, "myRs", msg)
+								msgbox.execute()
+								
 								
 					elif header=="ｶﾅ名":
 						ns = sheet[r, c-2:c+1].getDataArray()  # ID、漢字名、ｶﾅ名、を取得。
