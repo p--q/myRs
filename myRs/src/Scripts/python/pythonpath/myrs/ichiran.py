@@ -10,6 +10,7 @@ from com.sun.star.awt import MessageBoxButtons  # 定数
 from com.sun.star.awt import MessageBoxResults  # 定数
 from com.sun.star.i18n.TransliterationModulesNew import HALFWIDTH_FULLWIDTH, FULLWIDTH_HALFWIDTH  # enum
 from com.sun.star.lang import Locale  # Struct
+from com.sun.star.awt.MessageBoxType import ERRORBOX  # enum
 class Ichiran():  # シート固有の定数設定。
 	pass
 def getSectionName(controller, sheet, cell):  # 区画名を取得。
@@ -29,7 +30,7 @@ def getSectionName(controller, sheet, cell):  # 区画名を取得。
 	mergedheaders = emptycellranges[0].getRangeAddress()  # 結合セルの範囲を取得。
 	dstart, dend = mergedheaders.StartColumn+1, mergedheaders.EndColumn+1
 	rangeaddress = cell.getRangeAddress()  # セル範囲アドレスを取得。セルアドレスは不可。
-	contentcells = sheet[:, dstart-2].queryContentCells(CellFlags.STRING)  # 経過列の文字列が入っているセルに限定して抽出。空列は不可。
+	contentcells = sheet[:, dstart-6].queryContentCells(CellFlags.STRING)  # ID列の文字列が入っているセルに限定して抽出。空列は不可。
 	emptyrow = contentcells.getRangeAddresses()[-1].EndRow + 1  # 最終行インデックス+1を取得。
 	sectionname = "C"  # メニューセル以外の固定行の時。
 	if len(sheet[menurow, :dstart-1].queryIntersection(rangeaddress)):  # メニューセルの時。
@@ -63,7 +64,7 @@ def selectionChanged(controller, sheet, args):  # 矢印キーでセル移動し
 		drowBorders(controller, sheet, selection, borders)	
 def activeSpreadsheetChanged(sheet):  # シートがアクティブになった時。ドキュメントを開いた時は発火しない。
 	sheet["C1:F1"].setDataArray((("済をﾘｾｯﾄ", "検予を反映", "予をﾘｾｯﾄ", "入力支援"),))  # よく誤入力されるセルを修正する。つまりボタンになっているセルの修正。
-def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウスボタンを押した時。
+def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウスボタンを押した時。controllerにコンテナウィンドウはない。
 	borders, systemclipboard, transliteration = args
 	if enhancedmouseevent.Buttons==MouseButton.LEFT:  # 左ボタンのとき
 		if target.supportsService("com.sun.star.sheet.SheetCell"):  # ターゲットがセルの時。
@@ -71,7 +72,7 @@ def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウ
 				drowBorders(controller, sheet, target, borders)
 			elif enhancedmouseevent.ClickCount==2:  # ダブルクリックの時
 				ichiran = getSectionName(controller, sheet, target)
-				section, startrow, emptyrow, sumi_retu = ichiran.sectionname, ichiran.startrow, ichiran.emptyrow, ichiran.sumi_retu
+				section, startrow, emptyrow, sumi_retu, dstart = ichiran.sectionname, ichiran.startrow, ichiran.emptyrow, ichiran.sumi_retu, ichiran.dstart
 				celladdress = target.getCellAddress()
 				r, c = celladdress.Row, celladdress.Column  # targetの行と列のインデックスを取得。		
 				txt = target.getString()  # クリックしたセルの文字列を取得。		
@@ -89,7 +90,7 @@ def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウ
 							sheet[startrow:emptyrow, sumi_retu].setDataArray([("未",)]*(emptyrow-startrow))  # 済列をリセット。
 							searchdescriptor = sheet.createSearchDescriptor()
 							searchdescriptor.setSearchString("済")
-							cellranges = sheet[startrow:emptyrow, ichiran.dstart:ichiran.dend].findAll(searchdescriptor)  # チェック列の「済」が入っているセル範囲コレクションを取得。
+							cellranges = sheet[startrow:emptyrow, dstart:ichiran.dend].findAll(searchdescriptor)  # チェック列の「済」が入っているセル範囲コレクションを取得。
 							cellranges.setPropertyValue("CharColor", commons.COLORS["silver"])
 					elif txt=="予をﾘｾｯﾄ":
 						sheet[startrow:emptyrow, sumi_retu+1].clearContents(CellFlags.STRING)  # 予列をリセット。
@@ -121,18 +122,30 @@ def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウ
 					elif header=="ID":
 						systemclipboard.setContents(commons.TextTransferable(txt), None)  # クリップボードにIDをコピーする。
 					elif header=="漢字名":  # カルテシートをアクティブにする、なければ作成する。	
-						sheetname = sheet[r, c-1].getString()  # IDを取得。
-						sheets = controller.getModel().getSheets()  # シートコレクションを取得。
-						if sheetname in sheets:  # すでにシートが存在するときはそれをアクティブにする。
-							controller.setActiveSheet(sheets[sheetname])
-						else:
-							sheets.copyByName("00000000", sheetname, len(sheets))
 						
+# 						import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)
+						
+						ids = sheet[r, 2:dstart].getDataArray()[0]
+						sheets = controller.getModel().getSheets()  # シートコレクションを取得。
+						if ids[0] in sheets:  # すでにカルテシートが存在するときはそれをアクティブにする。
+							controller.setActiveSheet(sheets[ids[0]])
+						else:  # カルテシートがない時。
+							if not ids[-1]:  # 在院日数列がない時は他の列の値を設定、
+								pass
 							
-							
-							newsheet = sheets[sheetname]
-							controller.setActiveSheet(newsheet)
+							if all(ids[:4]):  # ID、漢字名、カナ名、入院日、すべてが揃っている時。
 								
+								
+						
+						
+								sheets.copyByName("00000000", ids[0], len(sheets))  # テンプレートシートをコピーしてID名のシートにして最後に挿入。
+								newsheet = sheets[ids[0]]  # カルテシートを取得。  
+								controller.setActiveSheet(newsheet)  # カルテシートをアクティブにする。
+							else:
+								msg = "ID、漢字名、カナ名、入院日、すべてを入力してください。"
+								containerwindow = controller.getContainerWindow()
+								msgbox = containerwindow.getToolkit().createMessageBox(containerwindow, ERRORBOX, MessageBoxButtons.BUTTONS_OK, "myRs", msg)
+								msgbox.exesute
 								
 					elif header=="ｶﾅ名":
 						ns = sheet[r, c-2:c+1].getDataArray()  # ID、漢字名、ｶﾅ名、を取得。
