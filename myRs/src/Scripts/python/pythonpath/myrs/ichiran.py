@@ -127,6 +127,9 @@ def mousePressed(enhancedmouseevent, controller, sheet, target, args):  # マウ
 							controller.setActiveSheet(sheets[sheetname])
 						else:
 							sheets.copyByName("00000000", sheetname, len(sheets))
+						
+							
+							
 							newsheet = sheets[sheetname]
 							controller.setActiveSheet(newsheet)
 								
