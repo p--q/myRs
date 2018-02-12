@@ -22,7 +22,7 @@ def myRs(tdocimport, modulefolderpath, xscriptcontext):  # 引数は文書のイ
 	systemclipboard = smgr.createInstanceWithContext("com.sun.star.datatransfer.clipboard.SystemClipboard", ctx)  # SystemClipboard。クリップボードへのコピーに利用。
 	transliteration = smgr.createInstanceWithContext("com.sun.star.i18n.Transliteration", ctx)  # Transliteration。半角カタカナへの変換に利用。
 	borders = createBorders()  # 枠線の作成。
-	changeslistener = ChangesListener()  # ChangesListener。セルの変化の感知に利用。
+	changeslistener = ChangesListener()  # ChangesListener。セルの変化の感知に利用。列の挿入も感知。
 	selectionchangelistener = SelectionChangeListener(borders)  # SelectionChangeListener。選択範囲の変更の感知に利用。
 	activationeventlistener = ActivationEventListener()  # ActivationEventListener。シートの切替の感知に利用。
 	enhancedmouseclickhandler = EnhancedMouseClickHandler(controller, borders, systemclipboard, transliteration)  # EnhancedMouseClickHandler。マウスの左クリックの感知に利用。
