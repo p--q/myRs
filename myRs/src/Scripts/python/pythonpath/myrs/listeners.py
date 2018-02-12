@@ -81,6 +81,9 @@ class EnhancedMouseClickHandler(unohelper.Base, XEnhancedMouseClickHandler):  # 
 		self.controller = controller
 		self.args = borders, systemclipboard, transliteration
 	def mousePressed(self, enhancedmouseevent):  # セルをクリックした時に発火する。固定行列の最初のクリックは同じ相対位置の固定していないセルが返ってくる(表示されている自由行の先頭行に背景色がる時のみ）。
+
+		# try文を入れる。そうでないとエラーでリスナーが外れる。
+
 # 		import pydevd; pydevd.settrace(stdoutToServer=True, stderrToServer=True)
 		target = enhancedmouseevent.Target  # ターゲットのセルを取得。
 		if target.supportsService("com.sun.star.sheet.SheetCellRange"):  # targetがチャートの時がありうる?
